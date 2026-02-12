@@ -1,0 +1,63 @@
+{
+  "name": "@sd0xdev/agentic-vault",
+  "version": "0.1.0",
+  "description": "Agentic Vault Wallet — server-side EVM signing with pluggable providers and agentic capabilities (MCP, Claude Code plugin)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sd0xdev/agentic-vault-wallet"
+  },
+  "license": "MIT",
+  "keywords": [
+    "agentic",
+    "vault",
+    "wallet",
+    "aws",
+    "kms",
+    "cdp",
+    "ethereum",
+    "signer",
+    "evm",
+    "secp256k1",
+    "eip-712",
+    "typed-data",
+    "viem",
+    "server-wallet",
+    "mcp",
+    "ai-agent",
+    "claude-code"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/ test/",
+    "lint:fix": "eslint src/ test/ --fix",
+    "test": "vitest run",
+    "test:unit": "vitest run test/unit",
+    "test:integration": "vitest run test/integration",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@aws-sdk/client-kms": "^3.985.0",
+    "viem": "^2.45.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.1",
+    "dotenv": "^17.2.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

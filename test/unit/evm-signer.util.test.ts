@@ -135,6 +135,31 @@ describe('parseDerSignature', () => {
       '77b10518c32821f813312de75d23cf97b81c09213e1e6729091eee8665e52195',
     );
   });
+
+  it('should reject r/s components longer than 32 bytes (fail-closed)', () => {
+    // Craft a DER where r is 33 non-zero bytes (no leading zero to strip).
+    // After stripLeadingZeros, r is still 33 bytes → padTo32Bytes must reject.
+    const rBytes = new Uint8Array(33);
+    rBytes.fill(0xff);
+    const sBytes = new Uint8Array(32);
+    sBytes.fill(0xaa);
+
+    // Build DER: 0x30 <totalLen> 0x02 <rLen> <r> 0x02 <sLen> <s>
+    const totalLen = 2 + rBytes.length + 2 + sBytes.length;
+    const der = new Uint8Array(2 + totalLen);
+    let offset = 0;
+    der[offset++] = 0x30; // SEQUENCE
+    der[offset++] = totalLen;
+    der[offset++] = 0x02; // INTEGER
+    der[offset++] = rBytes.length;
+    der.set(rBytes, offset);
+    offset += rBytes.length;
+    der[offset++] = 0x02; // INTEGER
+    der[offset++] = sBytes.length;
+    der.set(sBytes, offset);
+
+    expect(() => parseDerSignature(der)).toThrow('exceeds 32-byte secp256k1 scalar');
+  });
 });
 
 // ============================================================================

@@ -151,7 +151,9 @@ function stripLeadingZeros(bytes: Uint8Array): Uint8Array {
 /** Left-pad a byte array to 32 bytes */
 function padTo32Bytes(bytes: Uint8Array): Uint8Array {
   if (bytes.length === 32) return bytes;
-  if (bytes.length > 32) return new Uint8Array(bytes.buffer, bytes.byteOffset, 32);
+  if (bytes.length > 32) {
+    throw new Error(`Invalid DER integer: ${bytes.length} bytes exceeds 32-byte secp256k1 scalar`);
+  }
   const padded = new Uint8Array(32);
   padded.set(bytes, 32 - bytes.length);
   return padded;

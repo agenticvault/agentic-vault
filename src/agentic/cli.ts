@@ -15,7 +15,7 @@ import {
 import { AuditLogger } from './audit/logger.js';
 import { startStdioServer } from './mcp/server.js';
 
-function parseArgs(argv: string[]): {
+export function parseArgs(argv: string[]): {
   keyId: string;
   region: string;
   expectedAddress?: string;
@@ -58,7 +58,7 @@ function parseArgs(argv: string[]): {
   return { keyId, region, expectedAddress, unsafeRawSign, policyConfig };
 }
 
-function loadPolicyConfig(path: string): PolicyConfigV2 {
+export function loadPolicyConfig(path: string): PolicyConfigV2 {
   const raw = JSON.parse(readFileSync(path, 'utf-8'));
 
   // Parse V2 protocolPolicies if present

@@ -36,7 +36,7 @@ function createMockContext(): ToolContext {
 // ============================================================================
 
 /** Tools that are always registered regardless of unsafeRawSign */
-const SAFE_TOOLS = ['get_address', 'health_check', 'sign_swap', 'sign_permit'] as const;
+const SAFE_TOOLS = ['get_address', 'health_check', 'sign_swap', 'sign_permit', 'sign_defi_call'] as const;
 
 /** Tools that require unsafeRawSign to be true */
 const UNSAFE_TOOLS = ['sign_transaction', 'sign_typed_data'] as const;
@@ -73,7 +73,7 @@ describe('--unsafe-raw-sign flag', () => {
       expect(tools).not.toContain('sign_typed_data');
     });
 
-    it('should have exactly 4 tools registered', () => {
+    it('should have exactly 5 tools registered', () => {
       const ctx = createMockContext();
       const server = createMcpServer({ ...ctx, unsafeRawSign: false });
       const tools = getRegisteredToolNames(server);
@@ -131,7 +131,7 @@ describe('--unsafe-raw-sign flag', () => {
       expect(tools).toContain('sign_typed_data');
     });
 
-    it('should have exactly 6 tools registered', () => {
+    it('should have exactly 7 tools registered', () => {
       const ctx = createMockContext();
       const server = createMcpServer({ ...ctx, unsafeRawSign: true });
       const tools = getRegisteredToolNames(server);

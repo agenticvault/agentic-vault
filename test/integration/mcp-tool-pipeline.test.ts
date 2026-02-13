@@ -3,8 +3,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { encodeFunctionData, type Address } from 'viem';
 import { registerSignSwap } from '@/agentic/mcp/tools/sign-swap.js';
 import { registerSignPermit } from '@/agentic/mcp/tools/sign-permit.js';
+import { registerSignDefiCall } from '@/agentic/mcp/tools/sign-defi-call.js';
 import type { ToolContext, ToolSigner } from '@/agentic/mcp/tools/shared.js';
-import { PolicyEngine, erc20Evaluator } from '@/protocols/index.js';
+import { PolicyEngine, erc20Evaluator, ProtocolDispatcher, createDefaultRegistry } from '@/protocols/index.js';
 import type { PolicyConfigV2 } from '@/protocols/index.js';
 import { AuditLogger } from '@/agentic/audit/logger.js';
 import { Writable } from 'node:stream';
@@ -99,11 +100,13 @@ describe('MCP tool → PolicyEngine integration', () => {
     auditLogger = new AuditLogger(sink);
 
     const policyEngine = new PolicyEngine(createPolicyConfig(), [erc20Evaluator]);
+    const dispatcher = new ProtocolDispatcher(createDefaultRegistry());
 
-    ctx = { signer, policyEngine, auditLogger };
+    ctx = { signer, policyEngine, auditLogger, dispatcher };
     server = new McpServer({ name: 'test-integration', version: '0.0.1' });
     registerSignSwap(server, ctx);
     registerSignPermit(server, ctx);
+    registerSignDefiCall(server, ctx);
   });
 
   afterEach(() => {
@@ -170,6 +173,76 @@ describe('MCP tool → PolicyEngine integration', () => {
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Policy denied');
       expect(result.content[0].text).toContain('chainId');
+      expect(signer.signTransaction).not.toHaveBeenCalled();
+    });
+
+    it('should reject unknown selector before policy evaluation (fail-closed)', async () => {
+      const handler = getToolHandler(server, 'sign_swap');
+      const result = await handler({
+        chainId: 1,
+        to: USDC,
+        data: '0xdeadbeef0000000000000000000000000000000000000000',
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Rejected');
+      expect(signer.signTransaction).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- sign_defi_call ---
+
+  describe('sign_defi_call with real Dispatcher + PolicyEngine', () => {
+    it('should approve and sign when calldata matches known protocol', async () => {
+      const data = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [SPENDER, 500000000000000000n],
+      });
+
+      const handler = getToolHandler(server, 'sign_defi_call');
+      const result = await handler({
+        chainId: 1,
+        to: USDC,
+        data,
+        value: '500000000000000000',
+      });
+
+      expect(result.isError).toBeUndefined();
+      expect(result.content[0].text).toBe('0x02f8signed');
+      expect(signer.signTransaction).toHaveBeenCalled();
+    });
+
+    it('should reject unknown calldata with fail-closed semantics', async () => {
+      const handler = getToolHandler(server, 'sign_defi_call');
+      const result = await handler({
+        chainId: 1,
+        to: USDC,
+        data: '0xdeadbeef0000000000000000000000000000000000000000',
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Rejected');
+      expect(result.content[0].text).toContain('No registered decoder');
+      expect(signer.signTransaction).not.toHaveBeenCalled();
+    });
+
+    it('should deny when policy rejects known protocol calldata', async () => {
+      const data = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [SPENDER, 100n],
+      });
+
+      const handler = getToolHandler(server, 'sign_defi_call');
+      const result = await handler({
+        chainId: 1,
+        to: '0x0000000000000000000000000000000000000bad',
+        data,
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Policy denied');
       expect(signer.signTransaction).not.toHaveBeenCalled();
     });
   });

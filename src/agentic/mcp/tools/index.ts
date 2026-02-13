@@ -4,10 +4,11 @@ import { registerGetAddress } from './get-address.js';
 import { registerHealthCheck } from './health-check.js';
 import { registerSignSwap } from './sign-swap.js';
 import { registerSignPermit } from './sign-permit.js';
+import { registerSignDefiCall } from './sign-defi-call.js';
 import { registerSignTransaction } from './sign-transaction.js';
 import { registerSignTypedData } from './sign-typed-data.js';
 
-export { type ToolContext, type ToolSigner, type ToolPolicyEngine, type ToolAuditLogger } from './shared.js';
+export { type ToolContext, type ToolSigner, type ToolPolicyEngine, type ToolAuditLogger, type ToolDispatcher } from './shared.js';
 
 export interface RegisterToolsOptions {
   unsafeRawSign?: boolean;
@@ -23,6 +24,7 @@ export function registerTools(
   registerHealthCheck(server, ctx);
   registerSignSwap(server, ctx);
   registerSignPermit(server, ctx);
+  registerSignDefiCall(server, ctx);
 
   // Only register unsafe tools when explicitly opted in
   if (options?.unsafeRawSign) {

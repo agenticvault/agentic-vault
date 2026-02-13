@@ -87,9 +87,10 @@ describe('MCP server E2E (InMemoryTransport + LocalEvmSigner)', () => {
       expect(names).toContain('health_check');
       expect(names).toContain('sign_swap');
       expect(names).toContain('sign_permit');
+      expect(names).toContain('sign_defi_call');
       expect(names).not.toContain('sign_transaction');
       expect(names).not.toContain('sign_typed_data');
-      expect(names).toHaveLength(4);
+      expect(names).toHaveLength(5);
     });
   });
 
@@ -164,6 +165,69 @@ describe('MCP server E2E (InMemoryTransport + LocalEvmSigner)', () => {
       const text = (result.content as any[])[0].text;
       expect(text).toContain('Policy denied');
       expect(text).toContain('not in allowed list');
+      expect(result.isError).toBe(true);
+    });
+  });
+
+  // --- sign_defi_call ---
+
+  describe('sign_defi_call', () => {
+    it('should return signed transaction for known protocol calldata', async () => {
+      const data = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [SPENDER, 500000000000000000n],
+      });
+
+      const result = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: USDC,
+          data,
+          value: '500000000000000000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toMatch(/^0x02f8/);
+      expect(result.isError).toBeFalsy();
+    });
+
+    it('should reject unknown protocol calldata (fail-closed)', async () => {
+      const result = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: USDC,
+          data: '0xdeadbeef0000000000000000000000000000000000000000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toContain('Rejected');
+      expect(result.isError).toBe(true);
+    });
+  });
+
+  // --- sign_swap unknown protocol rejection ---
+
+  describe('sign_swap (fail-closed)', () => {
+    it('should reject unknown selector before policy evaluation', async () => {
+      const result = await client.callTool({
+        name: 'sign_swap',
+        arguments: {
+          chainId: 1,
+          to: USDC,
+          data: '0xdeadbeef0000000000000000000000000000000000000000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toContain('Rejected');
       expect(result.isError).toBe(true);
     });
   });
@@ -253,7 +317,7 @@ describe('MCP server E2E (unsafeRawSign enabled)', () => {
     await server.close();
   });
 
-  it('should list all 6 tools when unsafeRawSign is enabled', async () => {
+  it('should list all 7 tools when unsafeRawSign is enabled', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
 
@@ -261,8 +325,9 @@ describe('MCP server E2E (unsafeRawSign enabled)', () => {
     expect(names).toContain('health_check');
     expect(names).toContain('sign_swap');
     expect(names).toContain('sign_permit');
+    expect(names).toContain('sign_defi_call');
     expect(names).toContain('sign_transaction');
     expect(names).toContain('sign_typed_data');
-    expect(names).toHaveLength(6);
+    expect(names).toHaveLength(7);
   });
 });

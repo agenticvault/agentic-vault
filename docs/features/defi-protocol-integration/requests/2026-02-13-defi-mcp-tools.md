@@ -1,7 +1,7 @@
 # DeFi MCP Tools + Uniswap V3 Decoder
 
 > **Created**: 2026-02-13
-> **Status**: Pending
+> **Status**: In Development
 > **Priority**: P1
 > **Feature**: defi-protocol-integration
 > **Tech Spec**: [../2-tech-spec.md](../2-tech-spec.md) (Phase 3)
@@ -23,11 +23,11 @@
 
 ### Uniswap V3 Decoder
 
-| Item | Description |
-|------|-------------|
-| `src/protocols/decoders/uniswap-v3.ts` | SwapRouter02 `exactInputSingle` ABI + 解碼 |
-| `src/protocols/policy/evaluators/uniswap-v3.ts` | Token pair, slippage (`maxSlippageBps`), recipient 驗證 |
-| Contract registry | 註冊 mainnet (`0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45`) + Sepolia (`0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E`) SwapRouter02 地址 |
+| Item | Description | Status |
+|------|-------------|--------|
+| `src/protocols/decoders/uniswap-v3.ts` | SwapRouter02 `exactInputSingle` ABI + 解碼 | Pending |
+| `src/protocols/policy/evaluators/uniswap-v3.ts` | Token pair, slippage (`maxSlippageBps`), recipient 驗證 | Pending |
+| Contract registry | 註冊 mainnet (`0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45`) + Sepolia (`0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E`) SwapRouter02 地址 | Pending |
 
 ### ToolContext Extension
 
@@ -46,31 +46,31 @@
 ## Acceptance Criteria
 
 ### sign_defi_call
-- [ ] `sign_defi_call` MCP 工具已註冊且可呼叫（`src/agentic/mcp/tools/sign-defi-call.ts`）
-- [ ] Unknown calldata → rejected（MCP text content 回傳 error）+ audit log
-- [ ] Policy denied → violations（MCP text content）+ audit log
-- [ ] 成功簽名 → signedTx（MCP text content）+ audit log (approved)
-- [ ] 無 dispatcher 時 throw clear error
+- [x] `sign_defi_call` MCP 工具已註冊且可呼叫（`src/agentic/mcp/tools/sign-defi-call.ts`）
+- [x] Unknown calldata → rejected（MCP text content 回傳 error）+ audit log
+- [x] Policy denied → violations（MCP text content）+ audit log
+- [x] 成功簽名 → signedTx（MCP text content）+ audit log (approved)
+- [x] 無 dispatcher 時 throw clear error
 
 ### sign_swap 升級
-- [ ] `sign_swap` 經過 decoder pipeline，unknown calldata 被拒絕
-- [ ] `sign_swap` 向後相容：相同 input schema
-- [ ] `sign_swap` 無 dispatcher 時 throw clear error（與 `sign_defi_call` 行為一致）
+- [x] `sign_swap` 經過 decoder pipeline，unknown calldata 被拒絕
+- [x] `sign_swap` 向後相容：相同 input schema
+- [x] `sign_swap` 無 dispatcher 時 throw clear error（與 `sign_defi_call` 行為一致）
 
 ### Uniswap V3 Decoder
 - [ ] `exactInputSingle` calldata 正確解碼
 - [ ] 策略驗證 token pair / slippage / recipient
 
 ### ToolContext + Registration
-- [ ] `ToolContext.dispatcher` 為 optional（向後相容）
-- [ ] `createMcpServer` 注入預設 dispatcher
-- [ ] `src/agentic/mcp/tools/index.ts` 註冊 `sign_defi_call`
-- [ ] Safe tool count test（`test/unit/agentic/security/unsafe-flag.test.ts`）已更新
+- [x] `ToolContext.dispatcher` 為 optional（向後相容）
+- [x] `createMcpServer` 注入預設 dispatcher
+- [x] `src/agentic/mcp/tools/index.ts` 註冊 `sign_defi_call`
+- [x] Safe tool count test（`test/unit/agentic/security/unsafe-flag.test.ts`）已更新
 
 ### CI Gates
-- [ ] `pnpm typecheck` 通過
-- [ ] `pnpm test:unit` 全部通過
-- [ ] `pnpm build` 成功
+- [x] `pnpm typecheck` 通過
+- [x] `pnpm test:unit` 全部通過
+- [x] `pnpm build` 成功
 
 ## Dependencies
 
@@ -81,9 +81,9 @@
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | Done | Tech spec completed |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Development | In Progress | Phase 3a done (MCP tools + ToolContext); Phase 3b pending (Uniswap V3) |
+| Testing | In Progress | 259 unit + 12 integration + 10 E2E pass; Uniswap V3 tests pending |
+| Acceptance | In Progress | 15/17 AC checked (Uniswap V3 decoder: 0/2) |
 
 ## References
 

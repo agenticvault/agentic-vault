@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { ProtocolDispatcher, createDefaultRegistry } from '../../protocols/index.js';
 import { registerTools, type RegisterToolsOptions, type ToolContext } from './tools/index.js';
 
 export interface McpServerOptions extends ToolContext, RegisterToolsOptions {
@@ -17,6 +18,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
     signer: options.signer,
     policyEngine: options.policyEngine,
     auditLogger: options.auditLogger,
+    dispatcher: options.dispatcher ?? new ProtocolDispatcher(createDefaultRegistry()),
   };
 
   registerTools(server, ctx, { unsafeRawSign: options.unsafeRawSign });

@@ -75,6 +75,7 @@ describe('MCP Server', () => {
       expect(tools['health_check']).toBeDefined();
       expect(tools['sign_swap']).toBeDefined();
       expect(tools['sign_permit']).toBeDefined();
+      expect(tools['sign_defi_call']).toBeDefined();
     });
 
     it('should not register unsafe tools by default', () => {

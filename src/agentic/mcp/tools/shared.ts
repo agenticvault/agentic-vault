@@ -3,6 +3,18 @@
  * Uses structural typing so callers can pass the actual implementations.
  */
 
+/** Minimal decoded intent — structural supertype of the protocol layer's DecodedIntent union */
+export interface ToolDecodedIntent {
+  protocol: string;
+  chainId: number;
+  to: `0x${string}`;
+  selector?: `0x${string}`;
+  action?: string;
+  args?: Record<string, unknown>;
+  rawData?: `0x${string}`;
+  reason?: string;
+}
+
 /** Minimal signer interface needed by MCP tools */
 export interface ToolSigner {
   getAddress(): Promise<`0x${string}`>;
@@ -17,7 +29,7 @@ export interface ToolPolicyEvaluation {
   violations: string[];
 }
 
-/** Minimal policy engine interface needed by MCP tools */
+/** Minimal policy engine interface needed by MCP tools (V2 — intent-aware) */
 export interface ToolPolicyEngine {
   evaluate(request: {
     chainId: number;
@@ -25,7 +37,13 @@ export interface ToolPolicyEngine {
     selector?: `0x${string}`;
     amountWei?: bigint;
     deadline?: number;
+    intent?: ToolDecodedIntent;
   }): ToolPolicyEvaluation;
+}
+
+/** Protocol dispatcher interface for calldata decoding */
+export interface ToolDispatcher {
+  dispatch(chainId: number, to: `0x${string}`, data: `0x${string}`): ToolDecodedIntent;
 }
 
 /** Audit entry fields that callers provide (timestamp and traceId auto-generated) */
@@ -49,4 +67,5 @@ export interface ToolContext {
   signer: ToolSigner;
   policyEngine: ToolPolicyEngine;
   auditLogger: ToolAuditLogger;
+  dispatcher?: ToolDispatcher;
 }

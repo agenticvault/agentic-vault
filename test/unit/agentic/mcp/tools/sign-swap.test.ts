@@ -7,6 +7,19 @@ import { type ToolContext } from '@/agentic/mcp/tools/shared.js';
 // Helpers
 // ============================================================================
 
+function createMockDispatcher(protocol = 'erc20', action = 'approve') {
+  return {
+    dispatch: vi.fn().mockReturnValue({
+      protocol,
+      action,
+      chainId: 1,
+      to: '0x1234567890abcdef1234567890abcdef12345678',
+      selector: '0x38ed1739',
+      args: { spender: '0xspender', amount: 100n },
+    }),
+  };
+}
+
 function createMockContext(overrides?: Partial<ToolContext>): ToolContext {
   return {
     signer: {
@@ -21,14 +34,17 @@ function createMockContext(overrides?: Partial<ToolContext>): ToolContext {
     auditLogger: {
       log: vi.fn(),
     },
+    dispatcher: createMockDispatcher(),
     ...overrides,
   };
 }
 
+ 
 function getToolHandler(server: McpServer, toolName: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tools = (server as any)._registeredTools as Record<
     string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { handler: (args: Record<string, unknown>) => Promise<any> }
   >;
   return tools[toolName].handler;
@@ -41,6 +57,7 @@ function getToolHandler(server: McpServer, toolName: string) {
 describe('sign_swap tool', () => {
   let server: McpServer;
   let ctx: ToolContext;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let handler: (args: Record<string, unknown>) => Promise<any>;
 
   beforeEach(() => {
@@ -53,6 +70,63 @@ describe('sign_swap tool', () => {
   it('should register the sign_swap tool', () => {
     expect(handler).toBeDefined();
     expect(typeof handler).toBe('function');
+  });
+
+  describe('dispatcher integration', () => {
+    it('should call dispatcher.dispatch with correct args', async () => {
+      await handler({
+        chainId: 1,
+        to: '0x1234567890abcdef1234567890abcdef12345678',
+        data: '0x38ed1739000000000000000000000000',
+      });
+
+      expect(ctx.dispatcher!.dispatch).toHaveBeenCalledWith(
+        1,
+        '0x1234567890abcdef1234567890abcdef12345678',
+        '0x38ed1739000000000000000000000000',
+      );
+    });
+
+    it('should throw when dispatcher is missing', async () => {
+      ctx = createMockContext({ dispatcher: undefined });
+      server = new McpServer({ name: 'test', version: '0.0.1' });
+      registerSignSwap(server, ctx);
+      handler = getToolHandler(server, 'sign_swap');
+
+      await expect(handler({
+        chainId: 1,
+        to: '0x1234',
+        data: '0x38ed1739',
+      })).rejects.toThrow('sign_swap requires dispatcher in ToolContext');
+    });
+
+    it('should reject unknown protocols with fail-closed semantics', async () => {
+      ctx = createMockContext({
+        dispatcher: {
+          dispatch: vi.fn().mockReturnValue({
+            protocol: 'unknown',
+            chainId: 1,
+            to: '0x1234',
+            rawData: '0xdeadbeef',
+            reason: 'No registered decoder',
+          }),
+        },
+      });
+      server = new McpServer({ name: 'test', version: '0.0.1' });
+      registerSignSwap(server, ctx);
+      handler = getToolHandler(server, 'sign_swap');
+
+      const result = await handler({
+        chainId: 1,
+        to: '0x1234',
+        data: '0xdeadbeef',
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Rejected');
+      expect(result.content[0].text).toContain('No registered decoder');
+      expect(ctx.signer.signTransaction).not.toHaveBeenCalled();
+    });
   });
 
   describe('policy approval flow', () => {
@@ -70,6 +144,7 @@ describe('sign_swap tool', () => {
           to: '0x1234567890abcdef1234567890abcdef12345678',
           selector: '0x38ed1739',
           amountWei: 1000000000000000000n,
+          intent: expect.objectContaining({ protocol: 'erc20' }),
         }),
       );
       expect(ctx.signer.signTransaction).toHaveBeenCalledWith(
@@ -170,36 +245,6 @@ describe('sign_swap tool', () => {
       expect(result.content[0].text).toBe('Invalid value: must be a decimal string');
       expect(ctx.policyEngine.evaluate).not.toHaveBeenCalled();
       expect(ctx.signer.signTransaction).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('selector extraction', () => {
-    it('should extract first 4 bytes from data as selector', async () => {
-      await handler({
-        chainId: 1,
-        to: '0x1234567890abcdef1234567890abcdef12345678',
-        data: '0x38ed1739000000000000000000000000',
-      });
-
-      expect(ctx.policyEngine.evaluate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          selector: '0x38ed1739',
-        }),
-      );
-    });
-
-    it('should pass undefined selector when data is shorter than 10 chars', async () => {
-      await handler({
-        chainId: 1,
-        to: '0x1234567890abcdef1234567890abcdef12345678',
-        data: '0x38ed',
-      });
-
-      expect(ctx.policyEngine.evaluate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          selector: undefined,
-        }),
-      );
     });
   });
 

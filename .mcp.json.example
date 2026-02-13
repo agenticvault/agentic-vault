@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "agentic-vault": {
+      "command": "node",
+      "args": [
+        "dist/agentic/cli.js",
+        "--key-id", "${VAULT_KEY_ID}",
+        "--region", "${VAULT_REGION}"
+      ],
+      "env": {
+        "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
+        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
+        "AWS_SESSION_TOKEN": "${AWS_SESSION_TOKEN}"
+      }
+    }
+  }
+}

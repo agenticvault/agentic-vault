@@ -1,0 +1,132 @@
+# agentic-vault
+
+## Required Checks (Stop Hook enforced)
+
+| Change Type | Must Run | Can Skip |
+|-------------|----------|----------|
+| `.ts/.js` code | `/codex-review-fast` -> `/precommit` | - |
+| `.md` docs | `/codex-review-doc` | `/codex-review-fast` |
+| Comments only | - | All |
+
+Before PR: `/pr-review`
+
+## Workflow
+
+```
+Feature: develop -> write tests -> /verify -> /codex-review-fast + /codex-test-review -> /precommit -> /pr-review
+Bug fix: /issue-analyze -> /bug-fix -> investigate -> fix -> regression test -> /verify -> /codex-review-fast -> /precommit
+```
+
+### Auto-Loop Rule ⚠️
+
+After editing code or docs, you **MUST** run the review command **in the same reply** — do not stop, do not ask, do not just summarize.
+
+| After editing... | Immediately run | Then on pass |
+|------------------|----------------|--------------|
+| `.ts/.js/.jsx/.tsx` code | `/codex-review-fast` | `/precommit` |
+| `.md` docs | `/codex-review-doc` | (done) |
+| Review found issues | Fix all → re-run same review | — |
+
+**Declaring ≠ Executing**: Saying "should run review" without invoking the Skill tool is a violation.
+**Summary ≠ Completion**: Outputting a table then stopping is a violation.
+
+Full spec: @rules/auto-loop.md
+
+## Test Requirements
+
+| Change Type | Required Tests | File Mapping |
+|-------------|---------------|--------------|
+| New Service/Provider | `test/unit/` required | `src/core/xxx.ts` -> `test/unit/core/xxx.test.ts` |
+| Modify existing logic | Existing pass + new logic | `src/providers/*.ts` -> `test/unit/providers/*.test.ts` |
+| Bug fix | Regression test | - |
+| New MCP tool | Unit test | `src/agentic/mcp/tools/xxx.ts` -> `test/unit/agentic/mcp/tools/xxx.test.ts` |
+
+Coverage: happy path + error handling + edge cases (null, empty, extremes)
+
+## Command Quick Reference
+
+| Command | Description | When |
+|---------|-------------|------|
+| `/codex-brainstorm` | Adversarial brainstorm | Exploration |
+| `/feasibility-study` | Feasibility analysis | Requirements |
+| `/tech-spec` | Generate tech spec | Design |
+| `/review-spec` | Review tech spec | Design |
+| `/deep-analyze` | Deep analysis + roadmap | Design |
+| `/project-brief` | PM/CTO executive summary | Design |
+| `/codex-architect` | Architecture advice | Design |
+| `/codex-implement` | Codex writes code | Development |
+| `/bug-fix` | Bug fix workflow | Bug fixing |
+| `/feature-dev` | Feature development | Development |
+| `/code-explore` | Code exploration | Understanding |
+| `/git-investigate` | Track code history | Finding source |
+| `/issue-analyze` | Issue deep analysis | Root cause |
+| `/repo-intake` | One-time project scan | Onboarding |
+| `/verify` | Run tests | Development |
+| `/codex-review-fast` | Quick review (diff) | **Required** |
+| `/codex-review` | Full review (lint+build) | Important PR |
+| `/codex-review-branch` | Full branch review | Important PR |
+| `/codex-cli-review` | CLI review (full disk) | Deep review |
+| `/codex-review-doc` | Review .md files | Doc changes |
+| `/codex-explain` | Explain complex code | Understanding |
+| `/precommit` | lint + typecheck + test | **Required** |
+| `/precommit-fast` | lint + test (no build) | Quick check |
+| `/codex-security` | OWASP Top 10 | Security-sensitive |
+| `/codex-test-gen` | Generate unit tests | Adding tests |
+| `/codex-test-review` | Review test coverage | **Required** |
+| `/post-dev-test` | Post-dev test completion | After feature |
+| `/check-coverage` | Test coverage analysis | Quality |
+| `/dep-audit` | Dependency vulnerability audit | Periodic / PR |
+| `/update-docs` | Sync docs with code | Doc changes |
+| `/doc-refactor` | Simplify documents | Doc changes |
+| `/create-request` | Create/update request docs | Planning |
+| `/create-skill` | Create new skills | Tooling |
+| `/simplify` | Code simplification | Refactoring |
+| `/de-ai-flavor` | Remove AI artifacts | Doc changes |
+| `/zh-tw` | Rewrite in Traditional Chinese | i18n |
+| `/install-rules` | Install plugin rules to .claude/rules/ | Onboarding |
+| `/install-hooks` | Install plugin hooks to .claude/ | Onboarding |
+| `/project-setup` | Auto-detect and configure project | Onboarding |
+| `/pr-review` | PR self-review checklist | Before PR |
+
+## Development Rules
+
+1. **Reference existing code** -- find similar files first, keep style consistent
+2. **Test command** -- `pnpm test:unit`
+3. **Author attribution** -- use developer's GitHub username, never AI names
+4. **No auto-commit** -- Claude must not run `git add`, `git commit`, `git push`
+
+## Tech Stack
+
+viem . TypeScript . AWS KMS . MCP SDK . Vitest
+
+## Key Entrypoints
+
+| File | Purpose |
+|------|---------|
+| `src/provider/factory.ts` | Provider factory |
+| `src/agentic/cli.ts` | MCP CLI entry |
+
+## Footguns
+
+| Problem | Solution |
+|---------|----------|
+| Trust boundary violation | `src/agentic/` can only import from `../../index.js`, not internal modules |
+| Raw signing exposure | `sign_transaction`/`sign_typed_data` disabled unless `--unsafe-raw-sign` |
+| DER signature parsing | Must strip leading zeros and pad to 32 bytes |
+| Recovery param | Must try yParity 0 and 1, compare recovered address |
+| Low-s normalization | EIP-2: if s > secp256k1n/2, replace with n-s |
+| AWS SSO expiry | `aws sso login` to refresh before integration tests |
+
+## Rules
+
+- @rules/auto-loop.md -- Auto review loop (highest priority)
+- @rules/codex-invocation.md -- Codex must independently research (critical)
+- @rules/fix-all-issues.md -- Zero tolerance
+- @rules/testing.md
+- @rules/framework.md
+- @rules/security.md
+- @rules/docs-writing.md
+- @.claude/rules/docs-writing.md -- Locale-aware writing (local override)
+- @rules/docs-numbering.md
+- @rules/git-workflow.md
+- @rules/logging.md

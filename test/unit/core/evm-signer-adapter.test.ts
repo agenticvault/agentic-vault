@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { IKmsClient } from '@/kms-client.js';
+import type { SigningProvider, SignatureBlob, PublicKeyBlob } from '@/core/signing-provider.js';
 import type { Address } from 'viem';
 import type * as EvmSignerUtil from '@/evm-signer.util.js';
 
@@ -25,7 +25,7 @@ vi.mock('@/evm-signer.util.js', async (importOriginal) => {
 });
 
 // Import after mock setup
-const { KmsSignerAdapter } = await import('@/kms-signer.js');
+const { EvmSignerAdapter } = await import('@/core/evm-signer-adapter.js');
 const { parseDerSignature, normalizeSignature, resolveRecoveryParam } = await import(
   '@/evm-signer.util.js'
 );
@@ -35,7 +35,6 @@ const { parseDerSignature, normalizeSignature, resolveRecoveryParam } = await im
 // ============================================================================
 
 const HARDHAT_0_ADDRESS: Address = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
-const TEST_KEY_ID = 'test-key-id-12345';
 
 /** Uncompressed secp256k1 public key (65 bytes) for Hardhat #0 */
 const HARDHAT_0_PUBKEY = new Uint8Array(
@@ -47,71 +46,70 @@ const HARDHAT_0_PUBKEY = new Uint8Array(
 
 const MOCK_DER_SIGNATURE = new Uint8Array([0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01]);
 
-const VALID_KEY_METADATA = {
-  keySpec: 'ECC_SECG_P256K1',
-  keyUsage: 'SIGN_VERIFY',
-  keyState: 'Enabled',
-};
-
 // ============================================================================
 // Helpers
 // ============================================================================
 
-function createMockKmsClient(overrides?: Partial<IKmsClient>): IKmsClient {
+function createMockSigningProvider(overrides?: Partial<SigningProvider>): SigningProvider {
+  const mockSignatureBlob: SignatureBlob = {
+    bytes: MOCK_DER_SIGNATURE,
+    encoding: 'der',
+    algorithm: 'secp256k1',
+  };
+  const mockPublicKeyBlob: PublicKeyBlob = {
+    bytes: HARDHAT_0_PUBKEY,
+    algorithm: 'secp256k1',
+  };
   return {
-    signDigest: vi.fn().mockResolvedValue(MOCK_DER_SIGNATURE),
-    getPublicKey: vi.fn().mockResolvedValue(HARDHAT_0_PUBKEY),
-    describeKey: vi.fn().mockResolvedValue(VALID_KEY_METADATA),
+    signDigest: vi.fn().mockResolvedValue(mockSignatureBlob),
+    getPublicKey: vi.fn().mockResolvedValue(mockPublicKeyBlob),
+    healthCheck: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
 
-function createSigner(
-  mockClient: IKmsClient,
+function createAdapter(
+  provider: SigningProvider,
   config?: { expectedAddress?: Address },
-): InstanceType<typeof KmsSignerAdapter> {
-  return new KmsSignerAdapter(mockClient, {
-    keyId: TEST_KEY_ID,
-    region: 'ap-northeast-1',
-    ...config,
-  });
+): InstanceType<typeof EvmSignerAdapter> {
+  return new EvmSignerAdapter(provider, config);
 }
 
 // ============================================================================
 // getAddress
 // ============================================================================
 
-describe('KmsSignerAdapter.getAddress', () => {
-  it('should derive address from KMS public key', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+describe('EvmSignerAdapter.getAddress', () => {
+  it('should derive address from provider public key', async () => {
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
-    const address = await signer.getAddress();
+    const address = await adapter.getAddress();
     expect(address.toLowerCase()).toBe(HARDHAT_0_ADDRESS.toLowerCase());
-    expect(mockClient.getPublicKey).toHaveBeenCalledWith(TEST_KEY_ID);
+    expect(provider.getPublicKey).toHaveBeenCalledOnce();
   });
 
   it('should cache address using promise memoization', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
     const [addr1, addr2] = await Promise.all([
-      signer.getAddress(),
-      signer.getAddress(),
+      adapter.getAddress(),
+      adapter.getAddress(),
     ]);
 
     expect(addr1).toBe(addr2);
-    expect(mockClient.getPublicKey).toHaveBeenCalledTimes(1);
+    expect(provider.getPublicKey).toHaveBeenCalledTimes(1);
   });
 
   it('should reuse cached address on subsequent calls', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
-    await signer.getAddress();
-    await signer.getAddress();
+    await adapter.getAddress();
+    await adapter.getAddress();
 
-    expect(mockClient.getPublicKey).toHaveBeenCalledTimes(1);
+    expect(provider.getPublicKey).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -119,10 +117,10 @@ describe('KmsSignerAdapter.getAddress', () => {
 // signTransaction
 // ============================================================================
 
-describe('KmsSignerAdapter.signTransaction', () => {
+describe('EvmSignerAdapter.signTransaction', () => {
   it('should sign and return a serialized signed transaction', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
     const tx = {
       to: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' as Address,
@@ -135,16 +133,16 @@ describe('KmsSignerAdapter.signTransaction', () => {
       type: 'eip1559' as const,
     };
 
-    const signedTx = await signer.signTransaction(tx);
+    const signedTx = await adapter.signTransaction(tx);
     expect(signedTx).toBeDefined();
     expect(typeof signedTx).toBe('string');
     expect(signedTx.startsWith('0x')).toBe(true);
     expect(signedTx.startsWith('0x02')).toBe(true);
   });
 
-  it('should call signDigest with a 32-byte keccak256 digest', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+  it('should call signDigest with a 32-byte digest', async () => {
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
     const tx = {
       to: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' as Address,
@@ -157,19 +155,18 @@ describe('KmsSignerAdapter.signTransaction', () => {
       type: 'eip1559' as const,
     };
 
-    await signer.signTransaction(tx);
-    expect(mockClient.signDigest).toHaveBeenCalledWith(
-      TEST_KEY_ID,
+    await adapter.signTransaction(tx);
+    expect(provider.signDigest).toHaveBeenCalledWith(
       expect.any(Uint8Array),
     );
 
-    const digest = (mockClient.signDigest as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const digest = (provider.signDigest as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(digest.length).toBe(32);
   });
 
   it('should invoke parseDerSignature, normalizeSignature, and resolveRecoveryParam', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
     const tx = {
       to: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' as Address,
@@ -182,7 +179,7 @@ describe('KmsSignerAdapter.signTransaction', () => {
       type: 'eip1559' as const,
     };
 
-    await signer.signTransaction(tx);
+    await adapter.signTransaction(tx);
 
     expect(parseDerSignature).toHaveBeenCalledWith(MOCK_DER_SIGNATURE);
     expect(normalizeSignature).toHaveBeenCalledWith(MOCK_R, MOCK_S);
@@ -199,7 +196,7 @@ describe('KmsSignerAdapter.signTransaction', () => {
 // signTypedData
 // ============================================================================
 
-describe('KmsSignerAdapter.signTypedData', () => {
+describe('EvmSignerAdapter.signTypedData', () => {
   const eip2612PermitParams = {
     domain: {
       name: 'USD Coin',
@@ -227,10 +224,10 @@ describe('KmsSignerAdapter.signTypedData', () => {
   };
 
   it('should return {v, r, s} signature components', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
-    const sig = await signer.signTypedData(eip2612PermitParams);
+    const sig = await adapter.signTypedData(eip2612PermitParams);
 
     // v = yParity(1) + 27 = 28
     expect(sig.v).toBe(28);
@@ -239,25 +236,24 @@ describe('KmsSignerAdapter.signTypedData', () => {
   });
 
   it('should set v = yParity + 27', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
-    const sig = await signer.signTypedData(eip2612PermitParams);
+    const sig = await adapter.signTypedData(eip2612PermitParams);
     // With mock yParity = 1, v should be 28
     expect(sig.v).toBe(MOCK_Y_PARITY + 27);
   });
 
   it('should call signDigest with hashTypedData result', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
-    await signer.signTypedData(eip2612PermitParams);
-    expect(mockClient.signDigest).toHaveBeenCalledWith(
-      TEST_KEY_ID,
+    await adapter.signTypedData(eip2612PermitParams);
+    expect(provider.signDigest).toHaveBeenCalledWith(
       expect.any(Uint8Array),
     );
 
-    const digest = (mockClient.signDigest as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const digest = (provider.signDigest as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(digest.length).toBe(32);
   });
 });
@@ -266,83 +262,52 @@ describe('KmsSignerAdapter.signTypedData', () => {
 // healthCheck
 // ============================================================================
 
-describe('KmsSignerAdapter.healthCheck', () => {
-  it('should pass with valid key metadata and no expectedAddress', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+describe('EvmSignerAdapter.healthCheck', () => {
+  it('should pass when provider is healthy and no expectedAddress', async () => {
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
-    await expect(signer.healthCheck()).resolves.toBeUndefined();
-    expect(mockClient.describeKey).toHaveBeenCalledWith(TEST_KEY_ID);
+    await expect(adapter.healthCheck()).resolves.toBeUndefined();
+    expect(provider.healthCheck).toHaveBeenCalledOnce();
   });
 
-  it('should pass with valid metadata and matching expectedAddress', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient, {
+  it('should pass with matching expectedAddress', async () => {
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider, {
       expectedAddress: HARDHAT_0_ADDRESS,
     });
 
-    await expect(signer.healthCheck()).resolves.toBeUndefined();
-    expect(mockClient.getPublicKey).toHaveBeenCalledWith(TEST_KEY_ID);
-  });
-
-  it('should throw when KeySpec is not ECC_SECG_P256K1', async () => {
-    const mockClient = createMockKmsClient({
-      describeKey: vi.fn().mockResolvedValue({
-        ...VALID_KEY_METADATA,
-        keySpec: 'RSA_2048',
-      }),
-    });
-    const signer = createSigner(mockClient);
-
-    await expect(signer.healthCheck()).rejects.toThrow(
-      'invalid KeySpec: RSA_2048',
-    );
-  });
-
-  it('should throw when KeyUsage is not SIGN_VERIFY', async () => {
-    const mockClient = createMockKmsClient({
-      describeKey: vi.fn().mockResolvedValue({
-        ...VALID_KEY_METADATA,
-        keyUsage: 'ENCRYPT_DECRYPT',
-      }),
-    });
-    const signer = createSigner(mockClient);
-
-    await expect(signer.healthCheck()).rejects.toThrow(
-      'invalid KeyUsage: ENCRYPT_DECRYPT',
-    );
-  });
-
-  it('should throw when key is not Enabled', async () => {
-    const mockClient = createMockKmsClient({
-      describeKey: vi.fn().mockResolvedValue({
-        ...VALID_KEY_METADATA,
-        keyState: 'Disabled',
-      }),
-    });
-    const signer = createSigner(mockClient);
-
-    await expect(signer.healthCheck()).rejects.toThrow('not enabled: Disabled');
+    await expect(adapter.healthCheck()).resolves.toBeUndefined();
+    expect(provider.getPublicKey).toHaveBeenCalled();
   });
 
   it('should throw when derived address does not match expectedAddress', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient, {
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider, {
       expectedAddress: '0x0000000000000000000000000000000000000001' as Address,
     });
 
-    await expect(signer.healthCheck()).rejects.toThrow(
+    await expect(adapter.healthCheck()).rejects.toThrow(
       'does not match expected',
     );
   });
 
   it('should compare expectedAddress case-insensitively', async () => {
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient, {
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider, {
       expectedAddress: HARDHAT_0_ADDRESS.toLowerCase() as Address,
     });
 
-    await expect(signer.healthCheck()).resolves.toBeUndefined();
+    await expect(adapter.healthCheck()).resolves.toBeUndefined();
+  });
+
+  it('should propagate provider healthCheck failure', async () => {
+    const provider = createMockSigningProvider({
+      healthCheck: vi.fn().mockRejectedValue(new Error('Provider unhealthy')),
+    });
+    const adapter = createAdapter(provider);
+
+    await expect(adapter.healthCheck()).rejects.toThrow('Provider unhealthy');
   });
 });
 
@@ -350,7 +315,7 @@ describe('KmsSignerAdapter.healthCheck', () => {
 // Error propagation in sign pipeline
 // ============================================================================
 
-describe('KmsSignerAdapter error propagation', () => {
+describe('EvmSignerAdapter error propagation', () => {
   const tx = {
     to: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' as Address,
     value: 0n,
@@ -388,22 +353,22 @@ describe('KmsSignerAdapter error propagation', () => {
     },
   };
 
-  it('should propagate KMS signDigest failure in signTransaction', async () => {
-    const mockClient = createMockKmsClient({
-      signDigest: vi.fn().mockRejectedValue(new Error('KMS throttled')),
+  it('should propagate provider signDigest failure in signTransaction', async () => {
+    const provider = createMockSigningProvider({
+      signDigest: vi.fn().mockRejectedValue(new Error('Provider sign failed')),
     });
-    const signer = createSigner(mockClient);
+    const adapter = createAdapter(provider);
 
-    await expect(signer.signTransaction(tx)).rejects.toThrow('KMS throttled');
+    await expect(adapter.signTransaction(tx)).rejects.toThrow('Provider sign failed');
   });
 
-  it('should propagate KMS signDigest failure in signTypedData', async () => {
-    const mockClient = createMockKmsClient({
+  it('should propagate provider signDigest failure in signTypedData', async () => {
+    const provider = createMockSigningProvider({
       signDigest: vi.fn().mockRejectedValue(new Error('AccessDeniedException')),
     });
-    const signer = createSigner(mockClient);
+    const adapter = createAdapter(provider);
 
-    await expect(signer.signTypedData(typedDataParams)).rejects.toThrow('AccessDeniedException');
+    await expect(adapter.signTypedData(typedDataParams)).rejects.toThrow('AccessDeniedException');
   });
 
   it('should propagate parseDerSignature failure', async () => {
@@ -411,10 +376,10 @@ describe('KmsSignerAdapter error propagation', () => {
       throw new Error('Invalid DER signature: missing SEQUENCE tag');
     });
 
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
-    await expect(signer.signTransaction(tx)).rejects.toThrow('missing SEQUENCE tag');
+    await expect(adapter.signTransaction(tx)).rejects.toThrow('missing SEQUENCE tag');
   });
 
   it('should propagate resolveRecoveryParam failure', async () => {
@@ -422,19 +387,19 @@ describe('KmsSignerAdapter error propagation', () => {
       new Error('no matching yParity found'),
     );
 
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
-    await expect(signer.signTransaction(tx)).rejects.toThrow('no matching yParity found');
+    await expect(adapter.signTransaction(tx)).rejects.toThrow('no matching yParity found');
   });
 
   it('should propagate getPublicKey failure in getAddress', async () => {
-    const mockClient = createMockKmsClient({
-      getPublicKey: vi.fn().mockRejectedValue(new Error('KMS unavailable')),
+    const provider = createMockSigningProvider({
+      getPublicKey: vi.fn().mockRejectedValue(new Error('Provider unavailable')),
     });
-    const signer = createSigner(mockClient);
+    const adapter = createAdapter(provider);
 
-    await expect(signer.getAddress()).rejects.toThrow('KMS unavailable');
+    await expect(adapter.getAddress()).rejects.toThrow('Provider unavailable');
   });
 });
 
@@ -442,20 +407,25 @@ describe('KmsSignerAdapter error propagation', () => {
 // Promise memoization failure semantics
 // ============================================================================
 
-describe('KmsSignerAdapter.getAddress memoization failure', () => {
+describe('EvmSignerAdapter.getAddress memoization failure', () => {
   it('should cache the rejected promise (sticky failure)', async () => {
+    const mockPublicKeyBlob: PublicKeyBlob = {
+      bytes: HARDHAT_0_PUBKEY,
+      algorithm: 'secp256k1',
+    };
+
     const getPublicKey = vi
       .fn()
       .mockRejectedValueOnce(new Error('first call throttled'))
-      .mockResolvedValueOnce(HARDHAT_0_PUBKEY);
+      .mockResolvedValueOnce(mockPublicKeyBlob);
 
-    const mockClient = createMockKmsClient({ getPublicKey });
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider({ getPublicKey });
+    const adapter = createAdapter(provider);
 
     // First call fails
-    await expect(signer.getAddress()).rejects.toThrow('first call throttled');
+    await expect(adapter.getAddress()).rejects.toThrow('first call throttled');
     // Second call also fails because the rejected promise is cached
-    await expect(signer.getAddress()).rejects.toThrow('first call throttled');
+    await expect(adapter.getAddress()).rejects.toThrow('first call throttled');
     // getPublicKey was only called once (promise was memoized)
     expect(getPublicKey).toHaveBeenCalledTimes(1);
   });
@@ -465,14 +435,14 @@ describe('KmsSignerAdapter.getAddress memoization failure', () => {
 // signTypedData with yParity=0
 // ============================================================================
 
-describe('KmsSignerAdapter.signTypedData yParity=0', () => {
+describe('EvmSignerAdapter.signTypedData yParity=0', () => {
   it('should set v = 27 when yParity is 0', async () => {
     vi.mocked(resolveRecoveryParam).mockResolvedValueOnce(0);
 
-    const mockClient = createMockKmsClient();
-    const signer = createSigner(mockClient);
+    const provider = createMockSigningProvider();
+    const adapter = createAdapter(provider);
 
-    const sig = await signer.signTypedData({
+    const sig = await adapter.signTypedData({
       domain: {
         name: 'Test',
         version: '1',

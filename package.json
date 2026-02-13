@@ -9,9 +9,27 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./protocols": {
+      "types": "./dist/protocols/index.d.ts",
+      "import": "./dist/protocols/index.js"
+    },
+    "./agentic": {
+      "types": "./dist/agentic/index.d.ts",
+      "import": "./dist/agentic/index.js"
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    ".claude-plugin",
+    "skills",
+    ".mcp.json"
+  ],
+  "bin": {
+    "agentic-vault-mcp": "./dist/agentic/cli.js"
+  },
   "sideEffects": false,
   "engines": {
     "node": ">=22"
@@ -42,7 +60,7 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.check.json",
     "lint": "eslint src/ test/",
     "lint:fix": "eslint src/ test/ --fix",
     "test": "vitest run",
@@ -52,12 +70,17 @@
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.985.0",
-    "viem": "^2.45.1"
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "viem": "^2.45.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/node": "^25.2.1",
     "dotenv": "^17.2.4",
+    "eslint": "^9.39.2",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0",
     "vitest": "^4.0.18"
   }
 }

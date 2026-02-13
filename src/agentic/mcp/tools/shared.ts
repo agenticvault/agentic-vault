@@ -1,0 +1,52 @@
+/**
+ * Tool context types — defined locally to avoid trust boundary violations.
+ * Uses structural typing so callers can pass the actual implementations.
+ */
+
+/** Minimal signer interface needed by MCP tools */
+export interface ToolSigner {
+  getAddress(): Promise<`0x${string}`>;
+  signTransaction(tx: Record<string, unknown>): Promise<`0x${string}`>;
+  signTypedData(params: Record<string, unknown>): Promise<{ v: number; r: `0x${string}`; s: `0x${string}` }>;
+  healthCheck(): Promise<void>;
+}
+
+/** Policy evaluation result */
+export interface ToolPolicyEvaluation {
+  allowed: boolean;
+  violations: string[];
+}
+
+/** Minimal policy engine interface needed by MCP tools */
+export interface ToolPolicyEngine {
+  evaluate(request: {
+    chainId: number;
+    to: `0x${string}`;
+    selector?: `0x${string}`;
+    amountWei?: bigint;
+    deadline?: number;
+  }): ToolPolicyEvaluation;
+}
+
+/** Audit entry fields that callers provide (timestamp and traceId auto-generated) */
+export interface ToolAuditInput {
+  service: string;
+  action: string;
+  who: string;
+  what: string;
+  why: string;
+  result: 'approved' | 'denied' | 'error';
+  details?: Record<string, unknown>;
+}
+
+/** Minimal audit logger interface needed by MCP tools */
+export interface ToolAuditLogger {
+  log(entry: ToolAuditInput): unknown;
+}
+
+/** Full context passed to each MCP tool */
+export interface ToolContext {
+  signer: ToolSigner;
+  policyEngine: ToolPolicyEngine;
+  auditLogger: ToolAuditLogger;
+}

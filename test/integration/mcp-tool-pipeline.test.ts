@@ -5,7 +5,7 @@ import { registerSignSwap } from '@/agentic/mcp/tools/sign-swap.js';
 import { registerSignPermit } from '@/agentic/mcp/tools/sign-permit.js';
 import { registerSignDefiCall } from '@/agentic/mcp/tools/sign-defi-call.js';
 import type { ToolContext, ToolSigner } from '@/agentic/mcp/tools/shared.js';
-import { PolicyEngine, erc20Evaluator, ProtocolDispatcher, createDefaultRegistry } from '@/protocols/index.js';
+import { PolicyEngine, erc20Evaluator, uniswapV3Evaluator, ProtocolDispatcher, createDefaultRegistry } from '@/protocols/index.js';
 import type { PolicyConfigV2 } from '@/protocols/index.js';
 import { AuditLogger } from '@/agentic/audit/logger.js';
 import { Writable } from 'node:stream';
@@ -15,7 +15,10 @@ import { Writable } from 'node:stream';
 // ============================================================================
 
 const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
+const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' as Address;
 const SPENDER = '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45' as Address;
+const SWAP_ROUTER = '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45' as Address;
+const RECIPIENT = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' as Address;
 
 const erc20Abi = [
   {
@@ -27,6 +30,30 @@ const erc20Abi = [
       { name: 'amount', type: 'uint256' as const },
     ],
     outputs: [{ name: '', type: 'bool' as const }],
+  },
+] as const;
+
+const uniswapV3Abi = [
+  {
+    name: 'exactInputSingle',
+    type: 'function' as const,
+    stateMutability: 'payable' as const,
+    inputs: [
+      {
+        name: 'params',
+        type: 'tuple' as const,
+        components: [
+          { name: 'tokenIn', type: 'address' as const },
+          { name: 'tokenOut', type: 'address' as const },
+          { name: 'fee', type: 'uint24' as const },
+          { name: 'recipient', type: 'address' as const },
+          { name: 'amountIn', type: 'uint256' as const },
+          { name: 'amountOutMinimum', type: 'uint256' as const },
+          { name: 'sqrtPriceLimitX96', type: 'uint160' as const },
+        ],
+      },
+    ],
+    outputs: [{ name: 'amountOut', type: 'uint256' as const }],
   },
 ] as const;
 
@@ -363,5 +390,150 @@ describe('MCP tool → PolicyEngine integration', () => {
       expect(entry.details.violations).toBeDefined();
       expect(entry.details.violations.length).toBeGreaterThan(0);
     });
+  });
+});
+
+// ============================================================================
+// Tests: Uniswap V3 through MCP tool pipeline
+// ============================================================================
+
+describe('MCP tool → Uniswap V3 integration', () => {
+  let server: McpServer;
+  let signer: ToolSigner;
+  let ctx: ToolContext;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-15T12:00:00Z'));
+
+    signer = createMockSigner();
+    const sink = new Writable({ write(_chunk, _enc, cb) { cb(); } });
+    const auditLogger = new AuditLogger(sink);
+
+    const policyEngine = new PolicyEngine(
+      createPolicyConfig({
+        allowedContracts: [
+          USDC.toLowerCase() as `0x${string}`,
+          SWAP_ROUTER.toLowerCase() as `0x${string}`,
+        ],
+        allowedSelectors: ['0x095ea7b3', '0x04e45aaf'],
+        protocolPolicies: {
+          erc20: {
+            tokenAllowlist: [USDC.toLowerCase() as Address],
+            recipientAllowlist: [SPENDER.toLowerCase() as Address],
+            maxAllowanceWei: 10n ** 18n,
+          },
+          uniswap_v3: {
+            tokenAllowlist: [
+              WETH.toLowerCase() as Address,
+              USDC.toLowerCase() as Address,
+            ],
+            recipientAllowlist: [RECIPIENT.toLowerCase() as Address],
+            maxSlippageBps: 100,
+          },
+        },
+      }),
+      [erc20Evaluator, uniswapV3Evaluator],
+    );
+    const dispatcher = new ProtocolDispatcher(createDefaultRegistry());
+
+    ctx = { signer, policyEngine, auditLogger, dispatcher };
+    server = new McpServer({ name: 'test-uni-integration', version: '0.0.1' });
+    registerSignSwap(server, ctx);
+    registerSignDefiCall(server, ctx);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('should approve and sign Uniswap V3 exactInputSingle via sign_defi_call', async () => {
+    const data = encodeFunctionData({
+      abi: uniswapV3Abi,
+      functionName: 'exactInputSingle',
+      args: [
+        {
+          tokenIn: WETH,
+          tokenOut: USDC,
+          fee: 3000,
+          recipient: RECIPIENT,
+          amountIn: 1000000000000000000n,
+          amountOutMinimum: 1800000000n,
+          sqrtPriceLimitX96: 0n,
+        },
+      ],
+    });
+
+    const handler = getToolHandler(server, 'sign_defi_call');
+    const result = await handler({
+      chainId: 1,
+      to: SWAP_ROUTER,
+      data,
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0].text).toBe('0x02f8signed');
+    expect(signer.signTransaction).toHaveBeenCalled();
+  });
+
+  it('should deny Uniswap V3 swap with unauthorized token', async () => {
+    const UNKNOWN_TOKEN = '0x0000000000000000000000000000000000000bad' as Address;
+    const data = encodeFunctionData({
+      abi: uniswapV3Abi,
+      functionName: 'exactInputSingle',
+      args: [
+        {
+          tokenIn: UNKNOWN_TOKEN,
+          tokenOut: USDC,
+          fee: 3000,
+          recipient: RECIPIENT,
+          amountIn: 1000n,
+          amountOutMinimum: 1n,
+          sqrtPriceLimitX96: 0n,
+        },
+      ],
+    });
+
+    const handler = getToolHandler(server, 'sign_defi_call');
+    const result = await handler({
+      chainId: 1,
+      to: SWAP_ROUTER,
+      data,
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Policy denied');
+    expect(result.content[0].text).toContain('tokenIn');
+    expect(signer.signTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should deny Uniswap V3 swap with zero slippage protection', async () => {
+    const data = encodeFunctionData({
+      abi: uniswapV3Abi,
+      functionName: 'exactInputSingle',
+      args: [
+        {
+          tokenIn: WETH,
+          tokenOut: USDC,
+          fee: 3000,
+          recipient: RECIPIENT,
+          amountIn: 1000000000000000000n,
+          amountOutMinimum: 0n, // No slippage protection
+          sqrtPriceLimitX96: 0n,
+        },
+      ],
+    });
+
+    const handler = getToolHandler(server, 'sign_defi_call');
+    const result = await handler({
+      chainId: 1,
+      to: SWAP_ROUTER,
+      data,
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Policy denied');
+    expect(result.content[0].text).toContain('amountOutMinimum');
+    expect(signer.signTransaction).not.toHaveBeenCalled();
   });
 });

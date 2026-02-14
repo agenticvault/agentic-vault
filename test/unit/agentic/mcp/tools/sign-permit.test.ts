@@ -225,7 +225,7 @@ describe('sign_permit tool', () => {
       );
     });
 
-    it('should pass when domain has no verifyingContract (optional field)', async () => {
+    it('should reject when domain has no verifyingContract (required for replay protection)', async () => {
       const args = createPermitArgs({
         domain: {
           name: 'USD Coin',
@@ -237,17 +237,163 @@ describe('sign_permit tool', () => {
 
       const result = await handler(args);
 
-      expect(result.isError).toBeUndefined();
-      expect(ctx.signer.signTypedData).toHaveBeenCalled();
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('domain must include verifyingContract and chainId');
+      expect(ctx.signer.signTypedData).not.toHaveBeenCalled();
     });
 
-    it('should pass when domain has no chainId (optional field)', async () => {
+    it('should reject when domain has no chainId (required for replay protection)', async () => {
       const args = createPermitArgs({
         domain: {
           name: 'USD Coin',
           version: '2',
           verifyingContract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
           // no chainId
+        },
+      });
+
+      const result = await handler(args);
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('domain must include verifyingContract and chainId');
+      expect(ctx.signer.signTypedData).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('types.Permit canonical schema validation', () => {
+    it('should reject when types.Permit is missing', async () => {
+      const args = createPermitArgs({
+        types: {
+          // no Permit field
+        },
+      });
+
+      const result = await handler(args);
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('types.Permit must be an array');
+      expect(ctx.signer.signTypedData).not.toHaveBeenCalled();
+    });
+
+    it('should reject when types.Permit omits policy-checked fields', async () => {
+      const args = createPermitArgs({
+        types: {
+          Permit: [
+            { name: 'owner', type: 'address' },
+            { name: 'nonce', type: 'uint256' },
+            // missing spender, value, deadline — not part of signed digest
+          ],
+        },
+      });
+
+      const result = await handler(args);
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('spender');
+      expect(result.content[0].text).toContain('value');
+      expect(result.content[0].text).toContain('deadline');
+      expect(ctx.signer.signTypedData).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('message-vs-args bypass prevention (Phase 5a)', () => {
+    it('should reject when message.value differs from args.value', async () => {
+      const args = createPermitArgs({
+        value: '1000000000000000000', // 1 ETH in args (policy checks this)
+        message: {
+          owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+          spender: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45',
+          value: '999000000000000000000', // 999 ETH in message (actually signed)
+          nonce: '0',
+          deadline: '1700000000',
+        },
+      });
+
+      const result = await handler(args);
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Payload mismatch');
+      expect(result.content[0].text).toContain('message.value does not match value');
+      expect(ctx.signer.signTypedData).not.toHaveBeenCalled();
+      expect(ctx.auditLogger.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'sign_permit',
+          result: 'denied',
+          why: 'Payload/metadata consistency check failed',
+        }),
+      );
+    });
+
+    it('should reject when message.spender differs from args.spender', async () => {
+      const args = createPermitArgs({
+        spender: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45', // legit spender in args
+        message: {
+          owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+          spender: '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef', // attacker spender in message
+          value: '1000000000000000000',
+          nonce: '0',
+          deadline: '1700000000',
+        },
+      });
+
+      const result = await handler(args);
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('message.spender does not match spender');
+      expect(ctx.signer.signTypedData).not.toHaveBeenCalled();
+    });
+
+    it('should reject when message.deadline differs from args.deadline', async () => {
+      const args = createPermitArgs({
+        deadline: 1700000000, // short deadline in args
+        message: {
+          owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+          spender: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45',
+          value: '1000000000000000000',
+          nonce: '0',
+          deadline: '9999999999', // far future in message
+        },
+      });
+
+      const result = await handler(args);
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('message.deadline does not match deadline');
+      expect(ctx.signer.signTypedData).not.toHaveBeenCalled();
+    });
+
+    it('should pass when message fields match args (consistent payload)', async () => {
+      const result = await handler(createPermitArgs());
+
+      expect(result.isError).toBeUndefined();
+      expect(ctx.signer.signTypedData).toHaveBeenCalled();
+    });
+
+    it('should reject when message omits required EIP-2612 fields (prevent bypass via omission)', async () => {
+      const args = createPermitArgs({
+        message: {
+          owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+          nonce: '0',
+          // no value, spender, deadline — attacker omits policy-checked fields
+        },
+      });
+
+      const result = await handler(args);
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('must include value, spender, and deadline');
+      expect(ctx.signer.signTypedData).not.toHaveBeenCalled();
+    });
+
+    it('should compare spender case-insensitively', async () => {
+      const args = createPermitArgs({
+        spender: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45',
+        message: {
+          owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+          spender: '0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45', // lowercase
+          value: '1000000000000000000',
+          nonce: '0',
+          deadline: '1700000000',
         },
       });
 

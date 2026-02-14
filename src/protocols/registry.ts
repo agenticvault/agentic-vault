@@ -1,6 +1,7 @@
 import type { Address, Hex } from 'viem';
 import type { ProtocolDecoder } from './types.js';
 import { erc20Decoder } from './decoders/erc20.js';
+import { uniswapV3Decoder } from './decoders/uniswap-v3.js';
 
 export interface ContractEntry {
   protocol: string;
@@ -42,7 +43,18 @@ export class ProtocolRegistry {
 
 export function createDefaultRegistry(): RegistryConfig {
   return {
-    contracts: {},
+    contracts: {
+      // Uniswap V3 SwapRouter02 (Ethereum mainnet)
+      '1:0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45': {
+        protocol: 'uniswap_v3',
+        decoder: uniswapV3Decoder,
+      },
+      // Uniswap V3 SwapRouter02 (Sepolia testnet)
+      '11155111:0x3bfa4769fb09eefc5a80d6e87c3b9c650f7ae48e': {
+        protocol: 'uniswap_v3',
+        decoder: uniswapV3Decoder,
+      },
+    },
     interfaceDecoders: [erc20Decoder],
   };
 }

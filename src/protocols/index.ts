@@ -19,6 +19,7 @@ export { ProtocolDispatcher } from './dispatcher.js';
 
 // Decoders
 export { erc20Decoder } from './decoders/erc20.js';
+export { uniswapV3Decoder } from './decoders/uniswap-v3.js';
 
 // Policy V2
 export { PolicyEngine } from './policy/engine.js';
@@ -32,5 +33,28 @@ export type {
   ProtocolPolicyEvaluator,
 } from './policy/types.js';
 
+// Action Catalog
+export { ACTION_CATALOG, listActions } from './catalog.js';
+export type { ProtocolAction } from './catalog.js';
+
 // Evaluators
 export { erc20Evaluator } from './policy/evaluators/erc20.js';
+export { uniswapV3Evaluator } from './policy/evaluators/uniswap-v3.js';
+
+// Workflows
+export {
+  signDefiCall,
+  signPermit,
+  getAddress as getAddressWorkflow,
+  healthCheck as healthCheckWorkflow,
+  type WorkflowCaller,
+  type AuditSink,
+  type WorkflowSigner,
+  type WorkflowPolicyEngine,
+  type WorkflowDispatcher,
+  type WorkflowDecodedIntent,
+  type WorkflowContext,
+  type WorkflowResult,
+  type SignDefiCallInput,
+  type SignPermitInput,
+} from './workflows/index.js';

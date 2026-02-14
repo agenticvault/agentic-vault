@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { type ToolContext } from './shared.js';
+import { type ToolContext, zodHexAddress, zodHexData, zodPositiveChainId } from './shared.js';
+import { executeDecodedCallPipeline } from './decoded-call-pipeline.js';
 
 const inputSchema = {
-  chainId: z.number().describe('The chain ID for the transaction'),
-  to: z.string().describe('The target contract address'),
-  data: z.string().describe('The calldata (hex-encoded)'),
+  chainId: zodPositiveChainId.describe('The chain ID for the transaction'),
+  to: zodHexAddress.describe('The target contract address'),
+  data: zodHexData.describe('The calldata (hex-encoded)'),
   value: z.string().optional().describe('The value in wei (decimal string)'),
 };
 
@@ -14,116 +15,11 @@ export function registerSignSwap(server: McpServer, ctx: ToolContext): void {
     description: 'Sign a swap transaction after policy validation',
     inputSchema,
   }, async (args) => {
-    const to = args.to.toLowerCase() as `0x${string}`;
-    const data = args.data as `0x${string}`;
-
-    // Require dispatcher
-    if (!ctx.dispatcher) {
-      throw new Error('sign_swap requires dispatcher in ToolContext');
-    }
-
-    // Decode calldata via protocol dispatcher
-    const intent = ctx.dispatcher.dispatch(args.chainId, to, data);
-
-    // Reject unknown protocols (fail-closed)
-    if (intent.protocol === 'unknown') {
-      ctx.auditLogger.log({
-        service: 'agentic-vault-mcp',
-        action: 'sign_swap',
-        who: 'mcp-client',
-        what: `Rejected unknown calldata for ${to} on chain ${args.chainId}`,
-        why: `Decoder rejection: ${intent.reason}`,
-        result: 'denied',
-        details: { chainId: args.chainId, to, reason: intent.reason },
-      });
-      return {
-        content: [{ type: 'text' as const,
-          text: `Rejected: ${intent.reason}` }],
-        isError: true,
-      };
-    }
-
-    let amountWei: bigint | undefined;
-    if (args.value) {
-      try {
-        amountWei = BigInt(args.value);
-      } catch {
-        return {
-          content: [{ type: 'text' as const, text: 'Invalid value: must be a decimal string' }],
-          isError: true,
-        };
-      }
-    }
-
-    // Evaluate policy with decoded intent
-    const evaluation = ctx.policyEngine.evaluate({
+    return executeDecodedCallPipeline(ctx, 'sign_swap', {
       chainId: args.chainId,
-      to,
-      selector: 'selector' in intent ? intent.selector : undefined,
-      amountWei,
-      intent,
+      to: args.to,
+      data: args.data,
+      value: args.value as string | undefined,
     });
-
-    if (!evaluation.allowed) {
-      ctx.auditLogger.log({
-        service: 'agentic-vault-mcp',
-        action: 'sign_swap',
-        who: 'mcp-client',
-        what: `Swap signing denied for contract ${to} on chain ${args.chainId}`,
-        why: `Policy violations: ${evaluation.violations.join('; ')}`,
-        result: 'denied',
-        details: {
-          chainId: args.chainId, to,
-          selector: 'selector' in intent ? intent.selector : undefined,
-          violations: evaluation.violations,
-        },
-      });
-
-      return {
-        content: [{ type: 'text' as const, text: `Policy denied: ${evaluation.violations.join('; ')}` }],
-        isError: true,
-      };
-    }
-
-    try {
-      const signedTx = await ctx.signer.signTransaction({
-        chainId: args.chainId,
-        to,
-        data,
-        value: amountWei,
-      });
-
-      ctx.auditLogger.log({
-        service: 'agentic-vault-mcp',
-        action: 'sign_swap',
-        who: 'mcp-client',
-        what: `Signed swap tx for contract ${to} on chain ${args.chainId}`,
-        why: 'Swap signing approved by policy',
-        result: 'approved',
-        details: {
-          chainId: args.chainId, to,
-          selector: 'selector' in intent ? intent.selector : undefined,
-        },
-      });
-
-      return {
-        content: [{ type: 'text' as const, text: signedTx }],
-      };
-    } catch (error) {
-      ctx.auditLogger.log({
-        service: 'agentic-vault-mcp',
-        action: 'sign_swap',
-        who: 'mcp-client',
-        what: `Failed to sign swap tx for contract ${to}`,
-        why: 'Signing error',
-        result: 'error',
-        details: { error: error instanceof Error ? error.message : String(error) },
-      });
-
-      return {
-        content: [{ type: 'text' as const, text: `Signing error: ${error instanceof Error ? error.message : String(error)}` }],
-        isError: true,
-      };
-    }
   });
 }

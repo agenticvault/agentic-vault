@@ -4,7 +4,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { encodeFunctionData, type Address } from 'viem';
 import { createMcpServer } from '@/agentic/mcp/server.js';
-import { PolicyEngine, erc20Evaluator } from '@/protocols/index.js';
+import { PolicyEngine, erc20Evaluator, uniswapV3Evaluator } from '@/protocols/index.js';
 import type { PolicyConfigV2 } from '@/protocols/index.js';
 import { AuditLogger } from '@/agentic/audit/logger.js';
 import { LocalEvmSigner, HARDHAT_0_ADDRESS } from '../helpers/local-signer.js';
@@ -15,7 +15,9 @@ import { Writable } from 'node:stream';
 // ============================================================================
 
 const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
+const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' as Address;
 const SPENDER = '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45' as Address;
+const SWAP_ROUTER = '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45' as Address;
 
 const erc20Abi = [
   {
@@ -30,10 +32,37 @@ const erc20Abi = [
   },
 ] as const;
 
+const uniswapV3Abi = [
+  {
+    name: 'exactInputSingle',
+    type: 'function' as const,
+    stateMutability: 'payable' as const,
+    inputs: [
+      {
+        name: 'params',
+        type: 'tuple' as const,
+        components: [
+          { name: 'tokenIn', type: 'address' as const },
+          { name: 'tokenOut', type: 'address' as const },
+          { name: 'fee', type: 'uint24' as const },
+          { name: 'recipient', type: 'address' as const },
+          { name: 'amountIn', type: 'uint256' as const },
+          { name: 'amountOutMinimum', type: 'uint256' as const },
+          { name: 'sqrtPriceLimitX96', type: 'uint160' as const },
+        ],
+      },
+    ],
+    outputs: [{ name: 'amountOut', type: 'uint256' as const }],
+  },
+] as const;
+
 const TEST_POLICY: PolicyConfigV2 = {
   allowedChainIds: [1],
-  allowedContracts: [USDC.toLowerCase() as `0x${string}`],
-  allowedSelectors: ['0x095ea7b3'],
+  allowedContracts: [
+    USDC.toLowerCase() as `0x${string}`,
+    SWAP_ROUTER.toLowerCase() as `0x${string}`,
+  ],
+  allowedSelectors: ['0x095ea7b3', '0x04e45aaf'],
   maxAmountWei: 10n ** 18n,
   maxDeadlineSeconds: 3600,
   protocolPolicies: {
@@ -41,6 +70,14 @@ const TEST_POLICY: PolicyConfigV2 = {
       tokenAllowlist: [USDC.toLowerCase() as Address],
       recipientAllowlist: [SPENDER.toLowerCase() as Address],
       maxAllowanceWei: 10n ** 18n,
+    },
+    uniswap_v3: {
+      tokenAllowlist: [
+        WETH.toLowerCase() as Address,
+        USDC.toLowerCase() as Address,
+      ],
+      recipientAllowlist: [HARDHAT_0_ADDRESS.toLowerCase() as Address],
+      maxSlippageBps: 100,
     },
   },
 };
@@ -55,7 +92,7 @@ describe('MCP server E2E (InMemoryTransport + LocalEvmSigner)', () => {
 
   beforeAll(async () => {
     const signer = new LocalEvmSigner();
-    const policyEngine = new PolicyEngine(TEST_POLICY, [erc20Evaluator]);
+    const policyEngine = new PolicyEngine(TEST_POLICY, [erc20Evaluator, uniswapV3Evaluator]);
     // Discard audit output in E2E tests
     const sink = new Writable({ write(_chunk, _enc, cb) { cb(); } });
     const auditLogger = new AuditLogger(sink);
@@ -212,6 +249,77 @@ describe('MCP server E2E (InMemoryTransport + LocalEvmSigner)', () => {
     });
   });
 
+  // --- Uniswap V3 via sign_defi_call ---
+
+  describe('sign_defi_call (Uniswap V3)', () => {
+    it('should return signed transaction for exactInputSingle', async () => {
+      const data = encodeFunctionData({
+        abi: uniswapV3Abi,
+        functionName: 'exactInputSingle',
+        args: [
+          {
+            tokenIn: WETH,
+            tokenOut: USDC,
+            fee: 3000,
+            recipient: HARDHAT_0_ADDRESS,
+            amountIn: 500000000000000000n,
+            amountOutMinimum: 900000000n,
+            sqrtPriceLimitX96: 0n,
+          },
+        ],
+      });
+
+      const result = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: SWAP_ROUTER,
+          data,
+          value: '500000000000000000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      // EIP-1559: 0x02 + RLP prefix (f8 for short, f9 for longer payloads)
+      expect(text).toMatch(/^0x02f[89]/);
+      expect(result.isError).toBeFalsy();
+    });
+
+    it('should deny Uniswap V3 swap with zero slippage protection', async () => {
+      const data = encodeFunctionData({
+        abi: uniswapV3Abi,
+        functionName: 'exactInputSingle',
+        args: [
+          {
+            tokenIn: WETH,
+            tokenOut: USDC,
+            fee: 3000,
+            recipient: HARDHAT_0_ADDRESS,
+            amountIn: 500000000000000000n,
+            amountOutMinimum: 0n,
+            sqrtPriceLimitX96: 0n,
+          },
+        ],
+      });
+
+      const result = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: SWAP_ROUTER,
+          data,
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toContain('Policy denied');
+      expect(text).toContain('amountOutMinimum');
+      expect(result.isError).toBe(true);
+    });
+  });
+
   // --- sign_swap unknown protocol rejection ---
 
   describe('sign_swap (fail-closed)', () => {
@@ -292,7 +400,7 @@ describe('MCP server E2E (unsafeRawSign enabled)', () => {
 
   beforeAll(async () => {
     const signer = new LocalEvmSigner();
-    const policyEngine = new PolicyEngine(TEST_POLICY, [erc20Evaluator]);
+    const policyEngine = new PolicyEngine(TEST_POLICY, [erc20Evaluator, uniswapV3Evaluator]);
     const sink = new Writable({ write(_chunk, _enc, cb) { cb(); } });
     const auditLogger = new AuditLogger(sink);
 

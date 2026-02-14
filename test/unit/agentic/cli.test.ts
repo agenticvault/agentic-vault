@@ -30,6 +30,7 @@ vi.mock('@/protocols/index.js', () => ({
     evaluate = vi.fn().mockReturnValue({ allowed: true, violations: [] });
   },
   erc20Evaluator: { protocol: 'erc20', supportedSelectors: [], evaluate: vi.fn() },
+  uniswapV3Evaluator: { protocol: 'uniswap_v3', evaluate: vi.fn() },
 }));
 
 // Mock audit logger

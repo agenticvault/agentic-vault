@@ -11,6 +11,7 @@ import {
   type PolicyConfigV2,
   type ProtocolPolicyConfig,
   erc20Evaluator,
+  uniswapV3Evaluator,
 } from '../protocols/index.js';
 import { AuditLogger } from './audit/logger.js';
 import { startStdioServer } from './mcp/server.js';
@@ -112,7 +113,7 @@ async function main(): Promise<void> {
   const policyConfig = args.policyConfig
     ? loadPolicyConfig(args.policyConfig)
     : DEFAULT_POLICY;
-  const policyEngine = new PolicyEngine(policyConfig, [erc20Evaluator]);
+  const policyEngine = new PolicyEngine(policyConfig, [erc20Evaluator, uniswapV3Evaluator]);
 
   // Create audit logger
   const auditLogger = new AuditLogger();

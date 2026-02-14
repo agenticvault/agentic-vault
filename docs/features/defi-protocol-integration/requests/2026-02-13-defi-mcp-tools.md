@@ -1,7 +1,7 @@
 # DeFi MCP Tools + Uniswap V3 Decoder
 
 > **Created**: 2026-02-13
-> **Status**: In Development
+> **Status**: Done (locally complete, pending commit)
 > **Priority**: P1
 > **Feature**: defi-protocol-integration
 > **Tech Spec**: [../2-tech-spec.md](../2-tech-spec.md) (Phase 3)
@@ -25,9 +25,9 @@
 
 | Item | Description | Status |
 |------|-------------|--------|
-| `src/protocols/decoders/uniswap-v3.ts` | SwapRouter02 `exactInputSingle` ABI + 解碼 | Pending |
-| `src/protocols/policy/evaluators/uniswap-v3.ts` | Token pair, slippage (`maxSlippageBps`), recipient 驗證 | Pending |
-| Contract registry | 註冊 mainnet (`0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45`) + Sepolia (`0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E`) SwapRouter02 地址 | Pending |
+| `src/protocols/decoders/uniswap-v3.ts` | SwapRouter02 `exactInputSingle` ABI + 解碼 | Done |
+| `src/protocols/policy/evaluators/uniswap-v3.ts` | Token pair, non-zero slippage guard (`maxSlippageBps` 時拒絕 `amountOutMinimum=0`), recipient 驗證 | Done |
+| Contract registry | 註冊 mainnet (`0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45`) + Sepolia (`0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E`) SwapRouter02 地址 | Done |
 
 ### ToolContext Extension
 
@@ -58,8 +58,8 @@
 - [x] `sign_swap` 無 dispatcher 時 throw clear error（與 `sign_defi_call` 行為一致）
 
 ### Uniswap V3 Decoder
-- [ ] `exactInputSingle` calldata 正確解碼
-- [ ] 策略驗證 token pair / slippage / recipient
+- [x] `exactInputSingle` calldata 正確解碼
+- [x] 策略驗證 token pair / non-zero slippage guard / recipient（完整 bps 驗證需 oracle，已 deferred）
 
 ### ToolContext + Registration
 - [x] `ToolContext.dispatcher` 為 optional（向後相容）
@@ -81,9 +81,9 @@
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | Done | Tech spec completed |
-| Development | In Progress | Phase 3a done (MCP tools + ToolContext); Phase 3b pending (Uniswap V3) |
-| Testing | In Progress | 259 unit + 12 integration + 10 E2E pass; Uniswap V3 tests pending |
-| Acceptance | In Progress | 15/17 AC checked (Uniswap V3 decoder: 0/2) |
+| Development | Done | Phase 3a (MCP tools + ToolContext) + Phase 3b (Uniswap V3 decoder + evaluator) |
+| Testing | Done | 284 unit + 25 integration + 12 E2E pass (vitest run, pre-commit) |
+| Acceptance | Done | 17/17 AC checked |
 
 ## References
 

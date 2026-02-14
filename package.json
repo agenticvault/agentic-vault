@@ -28,6 +28,7 @@
     ".mcp.json"
   ],
   "bin": {
+    "agentic-vault": "./dist/cli/index.js",
     "agentic-vault-mcp": "./dist/agentic/cli.js"
   },
   "sideEffects": false,

@@ -97,7 +97,7 @@ describe('sign_swap tool', () => {
         chainId: 1,
         to: '0x1234',
         data: '0x38ed1739',
-      })).rejects.toThrow('sign_swap requires dispatcher in ToolContext');
+      })).rejects.toThrow('sign_swap requires dispatcher in WorkflowContext');
     });
 
     it('should reject unknown protocols with fail-closed semantics', async () => {

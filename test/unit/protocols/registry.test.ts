@@ -206,9 +206,19 @@ describe('ProtocolRegistry', () => {
   describe('createDefaultRegistry', () => {
     it('should return config with erc20 as interface decoder', () => {
       const config = createDefaultRegistry();
-      expect(config.contracts).toEqual({});
       expect(config.interfaceDecoders).toHaveLength(1);
       expect(config.interfaceDecoders[0].protocol).toBe('erc20');
+    });
+
+    it('should include Uniswap V3 SwapRouter02 contracts', () => {
+      const config = createDefaultRegistry();
+      const mainnet = config.contracts['1:0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45'];
+      const sepolia = config.contracts['11155111:0x3bfa4769fb09eefc5a80d6e87c3b9c650f7ae48e'];
+
+      expect(mainnet).toBeDefined();
+      expect(mainnet.protocol).toBe('uniswap_v3');
+      expect(sepolia).toBeDefined();
+      expect(sepolia.protocol).toBe('uniswap_v3');
     });
   });
 });

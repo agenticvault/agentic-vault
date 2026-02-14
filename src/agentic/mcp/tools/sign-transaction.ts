@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { type ToolContext } from './shared.js';
+import { type ToolContext, zodHexAddress, zodHexData, zodPositiveChainId } from './shared.js';
 
 const inputSchema = {
-  chainId: z.number().describe('The chain ID'),
-  to: z.string().describe('The target address'),
-  data: z.string().optional().describe('The calldata (hex-encoded)'),
+  chainId: zodPositiveChainId.describe('The chain ID'),
+  to: zodHexAddress.describe('The target address'),
+  data: zodHexData.optional().describe('The calldata (hex-encoded)'),
   value: z.string().optional().describe('The value in wei (decimal string)'),
   nonce: z.number().optional().describe('The transaction nonce'),
   gas: z.string().optional().describe('The gas limit (decimal string)'),

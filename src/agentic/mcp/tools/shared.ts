@@ -1,3 +1,25 @@
+import { z } from 'zod';
+
+/**
+ * Shared Zod schema refinements for MCP tool inputs.
+ * Validates hex format and address structure at the schema boundary.
+ */
+const HEX_RE = /^0x[0-9a-fA-F]*$/;
+
+export const zodHexAddress = z.string().refine(
+  (v) => HEX_RE.test(v) && v.length === 42,
+  { message: 'Invalid address: must be 0x-prefixed 42-character hex string' },
+);
+
+export const zodHexData = z.string().refine(
+  (v) => HEX_RE.test(v) && v.length % 2 === 0,
+  { message: 'Invalid hex data: must be 0x-prefixed even-length hex string' },
+);
+
+export const zodPositiveChainId = z.number().int().positive({
+  message: 'Invalid chainId: must be a positive integer',
+});
+
 /**
  * Tool context types — defined locally to avoid trust boundary violations.
  * Uses structural typing so callers can pass the actual implementations.

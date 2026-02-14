@@ -83,7 +83,7 @@ describe('sign_defi_call tool', () => {
         chainId: 1,
         to: '0x1234',
         data: '0x095ea7b3',
-      })).rejects.toThrow('sign_defi_call requires dispatcher in ToolContext');
+      })).rejects.toThrow('sign_defi_call requires dispatcher in WorkflowContext');
     });
 
     it('should call dispatcher.dispatch with correct args', async () => {

@@ -9,12 +9,18 @@ import {
 export class PolicyEngine {
   private readonly config: PolicyConfigV2;
   private readonly evaluators: Map<string, ProtocolPolicyEvaluator>;
+  private readonly allowedChainIds: Set<number>;
+  private readonly allowedContracts: Set<string>;
+  private readonly allowedSelectors: Set<string>;
 
   constructor(config: PolicyConfigV2, evaluators?: ProtocolPolicyEvaluator[]) {
     this.config = config;
     this.evaluators = new Map(
       (evaluators ?? []).map((e) => [e.protocol, e]),
     );
+    this.allowedChainIds = new Set(config.allowedChainIds);
+    this.allowedContracts = new Set(config.allowedContracts.map((c) => c.toLowerCase()));
+    this.allowedSelectors = new Set(config.allowedSelectors.map((s) => s.toLowerCase()));
   }
 
   evaluate(request: PolicyRequestV2): PolicyEvaluation {
@@ -44,30 +50,22 @@ export class PolicyEngine {
     const violations: string[] = [];
 
     // Check chainId whitelist
-    if (!this.config.allowedChainIds.includes(request.chainId)) {
+    if (!this.allowedChainIds.has(request.chainId)) {
       violations.push(
         `chainId ${request.chainId} not in allowed list [${this.config.allowedChainIds.join(', ')}]`,
       );
     }
 
-    // Check contract whitelist (case-insensitive)
-    const normalizedTo = request.to.toLowerCase() as `0x${string}`;
-    const normalizedContracts = this.config.allowedContracts.map(
-      (c) => c.toLowerCase() as `0x${string}`,
-    );
-    if (!normalizedContracts.includes(normalizedTo)) {
+    // Check contract whitelist (case-insensitive, pre-normalized)
+    if (!this.allowedContracts.has(request.to.toLowerCase())) {
       violations.push(
         `contract ${request.to} not in allowed list`,
       );
     }
 
-    // Check selector whitelist (if selector provided)
+    // Check selector whitelist (if selector provided, pre-normalized)
     if (request.selector !== undefined) {
-      const normalizedSelector = request.selector.toLowerCase() as `0x${string}`;
-      const normalizedSelectors = this.config.allowedSelectors.map(
-        (s) => s.toLowerCase() as `0x${string}`,
-      );
-      if (!normalizedSelectors.includes(normalizedSelector)) {
+      if (!this.allowedSelectors.has(request.selector.toLowerCase())) {
         violations.push(
           `selector ${request.selector} not in allowed list`,
         );

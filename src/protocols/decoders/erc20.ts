@@ -1,28 +1,6 @@
 import { decodeFunctionData, type Address, type Hex } from 'viem';
 import type { DecodedIntent, ProtocolDecoder } from '../types.js';
-
-const erc20Abi = [
-  {
-    name: 'approve',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'spender', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    outputs: [{ name: '', type: 'bool' }],
-  },
-  {
-    name: 'transfer',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'to', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    outputs: [{ name: '', type: 'bool' }],
-  },
-] as const;
+import { erc20Abi } from '../catalog.js';
 
 export const erc20Decoder: ProtocolDecoder = {
   protocol: 'erc20',

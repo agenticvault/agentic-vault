@@ -24,9 +24,9 @@ export {
   type AwsKmsSigningProviderConfig,
 } from './provider/factory.js';
 
-// ─── Agentic MCP exports (subpath: @sd0xdev/agentic-vault/agentic) ───
+// ─── Agentic MCP exports (subpath: @agenticvault/agentic-vault/agentic) ───
 // Moved to separate subpath to avoid eagerly pulling Node-only MCP/stdio
 // dependencies when consumers only need signing APIs.
-// Import via: import { PolicyEngine } from '@sd0xdev/agentic-vault/agentic'
+// Import via: import { PolicyEngine } from '@agenticvault/agentic-vault/agentic'
 export type { PolicyConfig, PolicyRequest, PolicyEvaluation } from './protocols/policy/types.js';
 export type { AuditEntry } from './agentic/audit/types.js';

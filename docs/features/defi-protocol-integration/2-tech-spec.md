@@ -21,7 +21,8 @@ The protocol decoder and policy engine are **interface-agnostic**. Phase 6 extra
 | --- | --- | --- | --- |
 | Human (CLI) [Phase 6b] | `agentic-vault sign` | Interactive CLI | Same decode+policy+sign pipeline, human-readable output |
 | AI Agent (MCP) | MCP `sign_defi_call` / `sign_swap` | MCP transport | Full decode+policy+sign pipeline |
-| Developer (SDK) | `@sd0xdev/agentic-vault/protocols` | TypeScript SDK | Dispatcher, PolicyEngine, Decoders — no MCP/CLI pulled (Workflows added in Phase 6a) |
+| AI Agent (OpenClaw) [Phase 8] | `@agenticvault/openclaw` | OpenClaw plugin `api.registerTool()` | Same workflow pipeline, OpenClaw-native tool registration |
+| Developer (SDK) | `@agenticvault/agentic-vault/protocols` | TypeScript SDK | Dispatcher, PolicyEngine, Decoders — no MCP/CLI pulled (Workflows added in Phase 6a) |
 | Claude Code (skills) | Skills → MCP tools | Skill markdown | Governance-consistent signing |
 | Backend service | `./protocols` + `.` (signer) | TypeScript SDK | Custom orchestration without MCP |
 
@@ -43,7 +44,7 @@ The protocol decoder and policy engine are **interface-agnostic**. Phase 6 extra
 | `./protocols` | Protocol decoder, dispatcher, PolicyEngine V2 (canonical path for policy types) | No |
 | `./agentic` | MCP server, CLI, audit logger | Yes |
 
-> **Backward compat note**: Current `src/index.ts` re-exports `PolicyConfig`, `PolicyRequest`, `PolicyEvaluation`, and `AuditEntry` as type-only. These are preserved in v0.1.x for backward compat but deprecated — consumers should migrate to `@sd0xdev/agentic-vault/protocols`.
+> **Backward compat note**: Current `src/index.ts` re-exports `PolicyConfig`, `PolicyRequest`, `PolicyEvaluation`, and `AuditEntry` as type-only. These are preserved in v0.1.x for backward compat but deprecated — consumers should migrate to `@agenticvault/agentic-vault/protocols`.
 
 ## 2. Architecture
 
@@ -57,6 +58,11 @@ The protocol decoder and policy engine are **interface-agnostic**. Phase 6 extra
 │  │ sign_swap │ sign_defi_call    │  │ sign │ sign-permit │ dry-run│ │
 │  │ sign_permit │ MCP Server      │  │ get-address │ health │ mcp  │ │
 │  └──────────────┬────────────────┘  └──────────┬─────────────────┘ │
+│                                                                     │
+│  ┌── OpenClaw (@agenticvault/openclaw) [Phase 8] ────────┐ │
+│  │ vault_sign_defi_call │ vault_sign_permit │ vault_get_address   │ │
+│  │ vault_health_check │ api.registerTool()                        │ │
+│  └──────────────┬─────────────────────────────────────────────────┘ │
 └─────────────────┼──────────────────────────────┼───────────────────┘
                   │                              │
      ┌────────────▼──────────────────────────────▼──────────────┐
@@ -99,13 +105,15 @@ src/
 │   ├── dispatcher.ts             # dispatch(chainId, to, data) → DecodedIntent
 │   ├── decoders/
 │   │   ├── erc20.ts              # ERC-20 ABI + decoder ✅
-│   │   └── uniswap-v3.ts         # Uniswap V3 SwapRouter02 ABI + decoder ✅
+│   │   ├── uniswap-v3.ts         # Uniswap V3 SwapRouter02 ABI + decoder ✅
+│   │   └── aave-v3.ts            # Aave V3 Pool ABI + decoder ✅
 │   └── policy/
 │       ├── types.ts              # PolicyConfigV2, PolicyRequestV2, ProtocolPolicyEvaluator
 │       ├── engine.ts             # PolicyEngine (V1 evolved to V2 in place) ✅
 │       └── evaluators/
 │           ├── erc20.ts          # ERC-20 policy (allowance cap, spender allowlist) ✅
-│           └── uniswap-v3.ts     # Uniswap policy (token pair, slippage, recipient) ✅
+│           ├── uniswap-v3.ts     # Uniswap policy (token pair, slippage, recipient) ✅
+│           └── aave-v3.ts        # Aave V3 policy (asset allowlist, interest rate mode) ✅
 ├── provider/                     # Provider factory (unchanged)
 ├── providers/                    # Provider implementations (unchanged)
 ├── agentic/                      # Layer 3: MCP interface
@@ -124,16 +132,16 @@ src/
 └── index.ts                      # Root exports (core + provider)
 ```
 
-#### Target State (Phase 4 + Phase 6)
+#### Target State (Phase 4 ✅ + Phase 6 ✅)
 
-Phase 4 adds Aave V3 decoder/evaluator. Phase 6 adds workflow layer and CLI.
+Phase 4 added Aave V3 decoder/evaluator. Phase 6 added workflow layer and CLI.
 
 ```
 src/protocols/
 │   ├── decoders/
-│   │   └── aave-v3.ts            # Aave V3 Pool ABI + decoder [Phase 4]
+│   │   └── aave-v3.ts            # Aave V3 Pool ABI + decoder ✅
 │   ├── policy/evaluators/
-│   │   └── aave-v3.ts            # Aave policy [Phase 4]
+│   │   └── aave-v3.ts            # Aave policy ✅
 │   └── workflows/                # Layer 2b: Shared business logic [Phase 6a]
 │       ├── types.ts              # WorkflowContext, AuditSink, domain result types
 │       ├── sign-defi-call.ts     # decode → policy → sign → audit → domain result
@@ -161,6 +169,7 @@ src/cli/                          # Layer 3: CLI interface adapter [Phase 6b+7]
 | `src/protocols/**` | `viem`, internal protocol modules, `src/core/**` (direct) | `@modelcontextprotocol/*`, `src/agentic/**` |
 | `src/agentic/**` | `src/index.js` (root) + `src/protocols/index.js` (via relative path) | Direct `src/core/**`, `src/providers/**` |
 | `src/core/**` | `viem`, internal core modules | `src/agentic/**`, `src/protocols/**` |
+| `@agenticvault/openclaw` [Phase 8] | `@agenticvault/agentic-vault` (root) + `@agenticvault/agentic-vault/protocols` | Internal `src/` paths, `@modelcontextprotocol/*` |
 
 The trust boundary test (`test/unit/agentic/trust-boundary.test.ts`) resolves each relative import path and checks against two allowed targets:
 
@@ -178,16 +187,16 @@ Import asymmetry is intentional:
 
 ### 2.4 Backward Compatibility Bridge
 
-Existing consumers import `PolicyEngine` from `@sd0xdev/agentic-vault/agentic`. The policy engine moves to `src/protocols/policy/`, so `src/agentic/index.ts` re-exports it:
+Existing consumers import `PolicyEngine` from `@agenticvault/agentic-vault/agentic`. The policy engine moves to `src/protocols/policy/`, so `src/agentic/index.ts` re-exports it:
 
 ```typescript
 // src/agentic/index.ts — compatibility bridge
-// @deprecated Use @sd0xdev/agentic-vault/protocols instead
+// @deprecated Use @agenticvault/agentic-vault/protocols instead
 export { PolicyEngine } from '../protocols/policy/engine.js';
 export type { PolicyConfig, PolicyRequest, PolicyEvaluation } from '../protocols/policy/types.js';
 ```
 
-This bridge will be removed in a future version. The canonical import path is `@sd0xdev/agentic-vault/protocols`.
+This bridge will be removed in a future version. The canonical import path is `@agenticvault/agentic-vault/protocols`.
 
 ## 3. Type Definitions
 
@@ -540,7 +549,7 @@ export { ProtocolDispatcher } from './dispatcher.js';
 // Decoders
 export { erc20Decoder } from './decoders/erc20.js';
 export { uniswapV3Decoder } from './decoders/uniswap-v3.js';
-// Phase 4: export { aaveV3Decoder } from './decoders/aave-v3.js';
+export { aaveV3Decoder } from './decoders/aave-v3.js';
 
 // Policy V2
 export { PolicyEngine } from './policy/engine.js';
@@ -907,10 +916,14 @@ const defaultRegistry: RegistryConfig = {
     '11155111:0x3bfa4769fb09eefc5a80d6e87c3b9c650f7ae48e': {
       protocol: 'uniswap_v3', decoder: uniswapV3Decoder,
     },
-    // Phase 4: Aave V3 Pool (Ethereum mainnet) — planned
-    // '1:0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2': {
-    //   protocol: 'aave_v3', decoder: aaveV3Decoder,
-    // },
+    // Aave V3 Pool (Ethereum mainnet)
+    '1:0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2': {
+      protocol: 'aave_v3', decoder: aaveV3Decoder,
+    },
+    // Aave V3 Pool (Sepolia testnet)
+    '11155111:0x6ae43d3271ff6888e7fc43fd7321a503ff738951': {
+      protocol: 'aave_v3', decoder: aaveV3Decoder,
+    },
   },
   // ERC-20 matched by selector (any contract)
   interfaceDecoders: [erc20Decoder],
@@ -981,7 +994,7 @@ sequenceDiagram
     participant Policy as PolicyEngine V2
     participant Signer as EvmSignerAdapter
 
-    Note over Dev: import from @sd0xdev/agentic-vault/protocols
+    Note over Dev: import from @agenticvault/agentic-vault/protocols
     Dev->>Dispatcher: dispatch(chainId, to, data)
     Dispatcher-->>Dev: DecodedIntent
     Dev->>Dev: Custom business logic on intent
@@ -989,7 +1002,7 @@ sequenceDiagram
     Dev->>Policy: evaluate({ ...request, intent })
     Policy-->>Dev: PolicyEvaluation
 
-    Note over Dev: import from @sd0xdev/agentic-vault
+    Note over Dev: import from @agenticvault/agentic-vault
     Dev->>Signer: signTransaction(tx)
     Signer-->>Dev: signedTx
 ```
@@ -1031,13 +1044,18 @@ sequenceDiagram
 | `src/cli/formatters.ts` | `test/unit/cli/formatters.test.ts` | ✅ |
 | `src/cli/commands/encode.ts` | `test/unit/cli/commands/encode.test.ts` | ✅ |
 | `src/cli/commands/decode.ts` | `test/unit/cli/commands/decode.test.ts` | ✅ |
+| `src/protocols/decoders/aave-v3.ts` | `test/unit/protocols/decoders/aave-v3.test.ts` | ✅ |
+| `src/protocols/policy/evaluators/aave-v3.ts` | `test/unit/protocols/policy/evaluators/aave-v3.test.ts` | ✅ |
+| `src/protocols/catalog.ts` (Aave actions) | `test/unit/protocols/catalog.test.ts` | ✅ |
+| Integration: Sepolia DeFi flow | `test/integration/sepolia-defi-flow.test.ts` | ✅ |
 
-### Test Files (Planned)
+### Test Files (OpenClaw Plugin — Phase 8 ✅)
 
-| Source | Test | Phase |
+| Source | Test | Status |
 | --- | --- | --- |
-| `src/protocols/decoders/aave-v3.ts` | `test/unit/protocols/decoders/aave-v3.test.ts` | Phase 4 |
-| `src/protocols/policy/evaluators/aave-v3.ts` | `test/unit/protocols/policy/evaluators/aave-v3.test.ts` | Phase 4 |
+| `packages/openclaw-plugin/src/tools.ts` | `packages/openclaw-plugin/test/tools.test.ts` | ✅ |
+| `packages/openclaw-plugin/src/context.ts` | `packages/openclaw-plugin/test/context.test.ts` | ✅ |
+| Trust boundary (OpenClaw) | `packages/openclaw-plugin/test/trust-boundary.test.ts` | ✅ |
 
 ### Test Coverage Requirements
 
@@ -1071,6 +1089,14 @@ sequenceDiagram
 | **Phase 7c** CLI: stdin support | `--data -` reads from stdin correctly |
 | **Phase 7d** CLI: permit --file | Auto-extraction from JSON with validation |
 | **Phase 7e** CLI: TTY confirmation | Interactive confirm in TTY, auto-skip in non-TTY, `--yes` override |
+| **Phase 8** OpenClaw: tool registration | 4 safe tools registered via `api.registerTool()`, 2 dual-gated (`{ optional: true }` + `enableUnsafeRawSign` config flag) |
+| **Phase 8** OpenClaw: context builder | Config → WorkflowContext with `caller: 'openclaw'` |
+| **Phase 8** OpenClaw: workflow delegation | Each tool calls correct workflow, returns `{ content }` format |
+| **Phase 8** OpenClaw: deny-all default | No policy config → all sign operations denied |
+| **Phase 8** OpenClaw: caller tag | AuditSink receives `caller: 'openclaw'` for all OpenClaw-originated operations |
+| **Phase 4** Aave V3: decoder | supply/borrow/repay/withdraw decode correctly |
+| **Phase 4** Aave V3: evaluator | Asset allowlist, interest rate mode, recipient validation |
+| **Phase 4** Aave V3: Sepolia E2E | Wrap → Swap → Aave Supply full flow with KMS signing |
 
 ### Test Data
 
@@ -1103,7 +1129,10 @@ const approveCalldata = encodeFunctionData({
 | V1 policy bypass (no intent) | MCP tools always inject intent via dispatcher; programmatic SDK callers who omit `intent` get V1 base checks only — documented tradeoff for backward compat |
 | **`sign_permit` message-vs-args bypass** | **Phase 5a: 以 EIP-712 message 為 single source of truth，嚴格比對 value/spender/deadline** |
 | **MCP input schema injection** | **Phase 5b: zod refinement 驗證 hex/address 格式** |
-| Interface security drift | **Phase 6 ✅**: Workflow layer 保證所有介面（MCP/CLI/SDK）共用相同 policy + audit + fail-closed 行為 |
+| Interface security drift | **Phase 6 ✅**: Workflow layer 保證 MCP/CLI/SDK 共用相同 policy + audit + fail-closed 行為；OpenClaw 將於 Phase 8 透過相同 workflow layer 納入 |
+| **OpenClaw supply chain** | **Phase 8**: 獨立套件 + npm provenance (OIDC) + 版本固定指引 |
+| **OpenClaw prompt injection → signing** | **Phase 8**: Policy engine 限制 chain/contract/amount/deadline，即使 agent 被操縱也無法超出白名單 |
+| **OpenClaw credential theft** | **Phase 8**: AWS credentials 透過 host default chain，不存於 plugin config；HSM boundary 保護私鑰 |
 
 ## 9. Migration Plan
 
@@ -1134,12 +1163,14 @@ const approveCalldata = encodeFunctionData({
 
 > **Note**: Uniswap V3 decoder/evaluator 完成。CLI evaluator 接線原延至 Phase 5c，已於 Phase 5 完成。`createMcpServer` 和 CLI 路徑均已正確接線。
 
-### Phase 4: Aave V3
+### Phase 4: Aave V3 ✅
 
-1. Add Aave V3 decoder (supply/borrow/repay/withdraw)
-2. Add Aave V3 policy evaluator
-3. Register Aave V3 contracts in registry
-4. Tests for all Aave actions
+1. Added Aave V3 decoder (supply/borrow/repay/withdraw) — `src/protocols/decoders/aave-v3.ts`
+2. Added Aave V3 policy evaluator — `src/protocols/policy/evaluators/aave-v3.ts`
+3. Registered Aave V3 contracts in registry (mainnet + Sepolia)
+4. Unit tests for all Aave actions (decoder + evaluator)
+5. Updated Protocol Action Catalog with 4 Aave V3 actions
+6. Sepolia E2E test: Wrap → Swap → Supply full DeFi flow with KMS signing (`test/integration/sepolia-defi-flow.test.ts`)
 
 ### Phase 5: Security Hardening + Code Quality
 
@@ -1195,6 +1226,7 @@ Constructor 已預處理 `allowedChainIds`、`allowedContracts`、`allowedSelect
 ### Phase 7: CLI UX Improvements ✅
 
 > 來源：Phase 6b 完成後的 CLI 介面體驗 brainstorming（Claude + Codex Nash Equilibrium，Codex thread: `019c5a01-4b71-72f1-87fe-d55d291e5a74`）
+> 詳見 [request doc](./requests/archive/2026-02-13-cli-ux-improvements.md)
 
 #### 7a. `encode` / `decode` Subcommands（Priority #1）
 
@@ -1274,6 +1306,134 @@ agentic-vault sign --chain-id 1 --to 0x... --data 0x...
 agentic-vault sign --yes --chain-id 1 ...
 ```
 
+### 4.10 OpenClaw Plugin [Phase 8 ✅]
+
+> 來源：產品推廣需求 brainstorming（Claude + Codex Nash Equilibrium，2026-02-13）
+> ADR-001 Decision 4 修訂：Phase 1 blanket defer → Phase 1.5 controlled launch
+
+OpenClaw plugin 作為獨立 npm 套件（`@agenticvault/openclaw`），直接 import workflow layer，不透過 subprocess 或 MCP bridge。
+
+#### Architecture
+
+```
+OpenClaw Gateway
+  └── @agenticvault/openclaw (thin adapter)
+        ├── import { signDefiCall, signPermit, ... } from '@agenticvault/agentic-vault/protocols'
+        ├── import { createSigningProvider, EvmSignerAdapter } from '@agenticvault/agentic-vault'
+        └── WorkflowContext { signer, policyEngine, auditSink, caller: 'openclaw' }
+```
+
+#### File Structure
+
+```
+pnpm-workspace.yaml              # packages: ['packages/*']
+packages/openclaw-plugin/
+├── package.json              # @agenticvault/openclaw
+├── tsconfig.json
+├── src/
+│   ├── index.ts              # register(api) entry — OpenClaw plugin lifecycle
+│   ├── tools.ts              # Tool definitions → workflow calls
+│   └── context.ts            # OpenClaw config → WorkflowContext builder
+├── openclaw.plugin.json      # OpenClaw manifest (catalog + configSchema)
+└── test/
+    ├── tools.test.ts
+    ├── context.test.ts
+    └── trust-boundary.test.ts
+```
+
+#### Plugin Entry
+
+```typescript
+// packages/openclaw-plugin/src/index.ts
+import { registerVaultTools } from './tools.js';
+
+export default function register(api: OpenClawPluginAPI): void {
+  registerVaultTools(api);
+}
+```
+
+#### Tool Mapping
+
+| OpenClaw Tool | Workflow | Optional |
+| --- | --- | --- |
+| `vault_get_address` | `getAddressWorkflow(ctx)` | No |
+| `vault_health_check` | `healthCheckWorkflow(ctx)` | No |
+| `vault_sign_defi_call` | `signDefiCall(ctx, 'vault_sign_defi_call', input)` | No |
+| `vault_sign_permit` | `signPermit(ctx, input)` | No |
+| `vault_sign_transaction` | `signer.signTransaction(tx)` | Yes (`{ optional: true }`) |
+| `vault_sign_typed_data` | `signer.signTypedData(params)` | Yes (`{ optional: true }`) |
+
+#### Config Schema
+
+```json
+{
+  "openclaw": {
+    "extensions": ["./dist/index.js"],
+    "slots": ["tool"],
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "keyId": { "type": "string", "description": "AWS KMS key ARN or alias" },
+        "region": { "type": "string", "description": "AWS region" },
+        "expectedAddress": { "type": "string" },
+        "policyConfigPath": { "type": "string" }
+      },
+      "required": ["keyId", "region"]
+    }
+  }
+}
+```
+
+User configures in `openclaw.json`:
+```json5
+{
+  "plugins": {
+    "entries": {
+      "agentic-vault": {
+        "enabled": true,
+        "config": {
+          "keyId": "arn:aws:kms:us-east-1:123:key/xxx",
+          "region": "us-east-1",
+          "policyConfigPath": "~/.openclaw/vault-policy.json"
+        }
+      }
+    }
+  }
+}
+```
+
+AWS credentials via host's default credential chain（與 CLI/MCP 一致）。
+
+#### Security Controls
+
+| Control | Implementation |
+| --- | --- |
+| Policy engine 強制啟用 | 無 policy config → deny-all default |
+| 高風險工具雙重保護 | `vault_sign_transaction`/`vault_sign_typed_data`：`{ optional: true }` + 需 config `enableUnsafeRawSign: true`（與 CLI `--unsafe-raw-sign` 對齊） |
+| HSM boundary | Private key never leaves KMS — workflow layer 不接觸私鑰 |
+| Audit trail | `caller: 'openclaw'` 標記所有審計日誌（需擴展 `WorkflowCaller` type） |
+| npm provenance | Trusted Publishers (OIDC) + `--provenance` |
+| 版本固定 | 文件指引使用者固定 exact version + 禁止 auto-install |
+
+### 4.11 OpenClaw Sequence Diagram [Phase 8 ✅]
+
+```mermaid
+sequenceDiagram
+    participant OC as OpenClaw Agent
+    participant Plugin as agentic-vault-openclaw
+    participant WF as signDefiCall workflow
+    participant KMS as AWS KMS (HSM)
+
+    OC->>Plugin: vault_sign_defi_call({ chainId, to, data })
+    Plugin->>Plugin: Build WorkflowContext(caller='openclaw')
+    Plugin->>WF: signDefiCall(ctx, args)
+    WF->>WF: Decode → Policy → Sign
+    WF->>KMS: signTransaction (via SigningProvider)
+    KMS-->>WF: signedTx
+    WF-->>Plugin: WorkflowResult
+    Plugin-->>OC: { content: [{ type: 'text', text: signedTx }] }
+```
+
 ### Backward Compatibility
 
 | Component | Compatibility |
@@ -1287,6 +1447,91 @@ agentic-vault sign --yes --chain-id 1 ...
 | CLI flags | No new flags required |
 | Policy config JSON | V1 configs work as-is (protocol policies optional) |
 
+### Phase 8: OpenClaw Plugin ✅
+
+> 來源：產品推廣需求 brainstorming（Claude + Codex Nash Equilibrium，2026-02-13，Codex threads: `019c5a43-1350-76a1-8ac0-048c1b498173`, `019c5a4d-4abe-7840-b81a-e1212985ee70`）
+> ADR-001 Decision 4 修訂：Phase 1 blanket defer → Phase 1.5 controlled launch
+> 詳見 [request doc](./requests/2026-02-14-openclaw-plugin.md)
+
+#### 8a. 獨立套件建立 ✅
+
+1. 新增 `pnpm-workspace.yaml`（`packages: ['packages/*']`）
+2. 建立 `packages/openclaw-plugin/` 獨立套件（`@agenticvault/openclaw`）
+3. `peerDependencies: { "@agenticvault/agentic-vault": "^0.1.0" }`
+4. 僅 import `@agenticvault/agentic-vault` + `@agenticvault/agentic-vault/protocols` public API
+5. Trust boundary test 驗證 import 限制
+
+#### 8b. Tool Registration ✅
+
+1. 實作 4 safe tools: `vault_get_address`, `vault_health_check`, `vault_sign_defi_call`, `vault_sign_permit`
+2. 高風險工具雙重保護：`{ optional: true }` + `enableUnsafeRawSign` config flag（與 CLI `--unsafe-raw-sign` 對齊）
+3. OpenClaw config schema 驗證 `keyId`, `region` 必填
+
+#### 8c. Context Builder ✅
+
+1. OpenClaw plugin config → `WorkflowContext` 轉換
+2. 擴展 `WorkflowCaller` type 加入 `'openclaw'`
+3. `caller: 'openclaw'` 審計標記
+4. Signer + PolicyEngine lazy singleton（每個 process 僅初始化一次）+ config mismatch 偵測
+5. AWS credentials via host default chain（不寫入 plugin config）
+
+#### 8d. ADR-001 更新 ✅
+
+1. Decision 4 修訂為 Phase 1.5 controlled launch
+2. 更新風險評估（HSM boundary intact, policy engine mitigates prompt injection）
+3. 記錄 4 項必要控制（policy 強制、雙重 gating、npm provenance、版本固定指引）
+
+#### 8e. CI + Distribution ✅
+
+1. 新增 `.github/workflows/openclaw-ci.yml`（PR/push 觸發 typecheck + lint + test）
+2. 新增 `.github/workflows/release-openclaw.yml`（tag 觸發 npm publish + provenance）
+3. npm Trusted Publishers (OIDC) 設定
+4. 發布後提交至 OpenClaw 官方 extension 生態系
+
+### Phase 9: Onboarding Improvements
+
+> 來源：OpenClaw 串接 + 安裝友善度 brainstorming（Claude + Codex Nash Equilibrium，2026-02-14）
+
+#### 9a. Environment Variable Fallback
+
+CLI 和 MCP server 將新增 `VAULT_KEY_ID` / `VAULT_REGION` 環境變數 fallback，減少啟動時必須傳入的 flags：
+
+| 優先順序 | 來源 | 範例 |
+| --- | --- | --- |
+| 1 | CLI flags / MCP config | `--key-id alias/my-key` |
+| 2 | 環境變數 | `VAULT_KEY_ID=alias/my-key` |
+| 3 | 無 → 報錯 | Clear error message |
+
+```bash
+# 設定一次，後續不需重複傳入
+export VAULT_KEY_ID=alias/my-key
+export VAULT_REGION=us-east-1
+agentic-vault sign --chain-id 1 --to 0x... --data 0x...
+```
+
+#### 9b. `.mcp.json` 修復
+
+目前 `.mcp.json.example` 使用 `npx`，但 npm 套件尚未發布。修復為可用的本地開發路徑或確保 npm publish 後 `npx @agenticvault/agentic-vault` 可直接使用。
+
+#### 9c. Policy Template
+
+新增 `policy.example.json` 提供典型 DeFi policy 設定範例：
+
+```json
+{
+  "allowedChainIds": [1, 11155111],
+  "allowedContracts": ["0x...usdc", "0x...uniswap-router"],
+  "protocolPolicies": {
+    "erc20": { "maxAllowanceWei": "1000000000000" },
+    "uniswap_v3": { "maxSlippageBps": 100 }
+  }
+}
+```
+
+#### 9d. `.env.example`
+
+新增 `.env.example` 列出所有支援的環境變數及說明。
+
 ## 10. Deferred Decisions
 
 | Item | Rationale | When |
@@ -1294,8 +1539,9 @@ agentic-vault sign --yes --chain-id 1 ...
 | ~~Service layer~~ | ~~Only 1 consumer (MCP) in v0.1.0~~ → **Resolved**: Workflow layer in `src/protocols/workflows/`（Phase 6a） | ✅ Resolved |
 | ~~AuditLogger extraction~~ | ~~Currently MCP governance semantics only~~ → **Resolved**: `AuditSink` interface 注入 workflows，`AuditLogger` 實作保留在 `src/agentic/audit/`，CLI 也可注入 | ✅ Resolved |
 | ~~CLI framework choice~~ | ~~yargs vs commander vs minimist~~ → **Resolved**: 手動 `switch` routing（零依賴），與 `src/agentic/cli.ts` 模式一致 | ✅ Resolved |
-| `./protocols` as standalone npm package | Monorepo split not justified yet | When significant independent consumers exist |
+| `./protocols` as standalone npm package | Monorepo split not justified yet → **partially addressed**: OpenClaw plugin 是首個外部 consumer | When more independent consumers exist |
 | Skills using programmatic API directly | Skills are markdown → MCP tool calls | When skills framework supports in-process execution |
+| ~~OpenClaw integration~~ | ~~ADR-001 defers to Phase 2~~ → **Resolved**: Phase 8 controlled launch | ✅ Resolved |
 
 ## 11. Open Decisions
 

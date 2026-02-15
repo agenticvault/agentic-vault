@@ -1,0 +1,30 @@
+name: Release OpenClaw Plugin
+on:
+  push:
+    tags:
+      - 'openclaw-v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @agenticvault/agentic-vault build
+      - run: pnpm --filter @agenticvault/openclaw build
+      - run: pnpm --filter @agenticvault/openclaw typecheck
+      - run: pnpm --filter @agenticvault/openclaw lint
+      - run: pnpm --filter @agenticvault/openclaw test:unit
+      - run: pnpm --filter @agenticvault/openclaw publish --provenance --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

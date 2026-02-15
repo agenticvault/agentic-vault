@@ -38,8 +38,8 @@
 
 | 決策 | 值 |
 |------|-----|
-| Repo | `sd0xdev/agentic-vault-wallet` |
-| npm | `@sd0xdev/agentic-vault` |
+| Repo | `agenticvault/agentic-vault` |
+| npm | `@agenticvault/agentic-vault` |
 | 產品名稱 | Agentic Vault Wallet |
 | 提取方式 | 從 `packages/vaultsign/` 複製 + 新 repo |
 

@@ -2,11 +2,11 @@
 
 > **Status**: Superseded
 > **Superseded by**: Actual implementation in `src/core/`, `src/providers/`, `src/provider/`
-> **Note**: This document was written for the original `@sd0xdev/vaultsign` extraction. The Provider Abstraction Layer (v0.2.1) and subpath exports described in sections 3.2-3.3 have been **implemented**. Refer to the actual codebase for current architecture.
+> **Note**: This document was written for the original `@agenticvault/agentic-vault` extraction. The Provider Abstraction Layer (v0.2.1) and subpath exports described in sections 3.2-3.3 have been **implemented**. Refer to the actual codebase for current architecture.
 
 ## 1. Overview
 
-`@sd0xdev/vaultsign`：伺服器端 EVM 簽名套件，目前僅支援 AWS KMS provider。未來規劃可插拔的 `SigningProvider` 抽象。
+`@agenticvault/agentic-vault`：伺服器端 EVM 簽名套件，目前僅支援 AWS KMS provider。未來規劃可插拔的 `SigningProvider` 抽象。
 
 - v0.2.0：AWS KMS provider（目前）
 - v0.3.0（規劃中）：`SigningProvider` 抽象化 + CDP provider

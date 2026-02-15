@@ -25,8 +25,8 @@
 
 ## Acceptance Criteria
 
-- [x] ADR-001 涵蓋 repo 策略（`sd0xdev/agentic-vault-wallet`）
-- [x] ADR-001 涵蓋 npm 命名（`@sd0xdev/agentic-vault`）
+- [x] ADR-001 涵蓋 repo 策略（`agenticvault/agentic-vault`）
+- [x] ADR-001 涵蓋 npm 命名（`@agenticvault/agentic-vault`）
 - [x] ADR-001 涵蓋套件拆分觸發條件（3 conditions）
 - [x] ADR-001 涵蓋 MCP 策略模型（policy-constrained tools）
 - [x] ADR-001 涵蓋 OpenClaw Phase 2 條件

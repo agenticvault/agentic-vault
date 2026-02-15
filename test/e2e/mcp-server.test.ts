@@ -4,7 +4,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { encodeFunctionData, type Address } from 'viem';
 import { createMcpServer } from '@/agentic/mcp/server.js';
-import { PolicyEngine, erc20Evaluator, uniswapV3Evaluator } from '@/protocols/index.js';
+import { PolicyEngine, erc20Evaluator, uniswapV3Evaluator, aaveV3Evaluator } from '@/protocols/index.js';
 import type { PolicyConfigV2 } from '@/protocols/index.js';
 import { AuditLogger } from '@/agentic/audit/logger.js';
 import { LocalEvmSigner, HARDHAT_0_ADDRESS } from '../helpers/local-signer.js';
@@ -18,6 +18,7 @@ const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
 const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' as Address;
 const SPENDER = '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45' as Address;
 const SWAP_ROUTER = '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45' as Address;
+const AAVE_V3_POOL = '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2' as Address;
 
 const erc20Abi = [
   {
@@ -56,19 +57,74 @@ const uniswapV3Abi = [
   },
 ] as const;
 
+const aaveV3Abi = [
+  {
+    name: 'supply' as const,
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [
+      { name: 'asset', type: 'address' as const },
+      { name: 'amount', type: 'uint256' as const },
+      { name: 'onBehalfOf', type: 'address' as const },
+      { name: 'referralCode', type: 'uint16' as const },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'borrow' as const,
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [
+      { name: 'asset', type: 'address' as const },
+      { name: 'amount', type: 'uint256' as const },
+      { name: 'interestRateMode', type: 'uint256' as const },
+      { name: 'referralCode', type: 'uint16' as const },
+      { name: 'onBehalfOf', type: 'address' as const },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'repay' as const,
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [
+      { name: 'asset', type: 'address' as const },
+      { name: 'amount', type: 'uint256' as const },
+      { name: 'interestRateMode', type: 'uint256' as const },
+      { name: 'onBehalfOf', type: 'address' as const },
+    ],
+    outputs: [{ name: '', type: 'uint256' as const }],
+  },
+  {
+    name: 'withdraw' as const,
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [
+      { name: 'asset', type: 'address' as const },
+      { name: 'amount', type: 'uint256' as const },
+      { name: 'to', type: 'address' as const },
+    ],
+    outputs: [{ name: '', type: 'uint256' as const }],
+  },
+] as const;
+
 const TEST_POLICY: PolicyConfigV2 = {
   allowedChainIds: [1],
   allowedContracts: [
     USDC.toLowerCase() as `0x${string}`,
     SWAP_ROUTER.toLowerCase() as `0x${string}`,
+    AAVE_V3_POOL.toLowerCase() as `0x${string}`,
   ],
-  allowedSelectors: ['0x095ea7b3', '0x04e45aaf'],
+  allowedSelectors: ['0x095ea7b3', '0x04e45aaf', '0x617ba037', '0xa415bcad', '0x573ade81', '0x69328dec'],
   maxAmountWei: 10n ** 18n,
   maxDeadlineSeconds: 3600,
   protocolPolicies: {
     erc20: {
       tokenAllowlist: [USDC.toLowerCase() as Address],
-      recipientAllowlist: [SPENDER.toLowerCase() as Address],
+      recipientAllowlist: [
+        SPENDER.toLowerCase() as Address,
+        AAVE_V3_POOL.toLowerCase() as Address,
+      ],
       maxAllowanceWei: 10n ** 18n,
     },
     uniswap_v3: {
@@ -78,6 +134,12 @@ const TEST_POLICY: PolicyConfigV2 = {
       ],
       recipientAllowlist: [HARDHAT_0_ADDRESS.toLowerCase() as Address],
       maxSlippageBps: 100,
+    },
+    aave_v3: {
+      tokenAllowlist: [USDC.toLowerCase() as Address],
+      recipientAllowlist: [HARDHAT_0_ADDRESS.toLowerCase() as Address],
+      maxAmountWei: 10n ** 18n,
+      maxInterestRateMode: 2,
     },
   },
 };
@@ -92,7 +154,7 @@ describe('MCP server E2E (InMemoryTransport + LocalEvmSigner)', () => {
 
   beforeAll(async () => {
     const signer = new LocalEvmSigner();
-    const policyEngine = new PolicyEngine(TEST_POLICY, [erc20Evaluator, uniswapV3Evaluator]);
+    const policyEngine = new PolicyEngine(TEST_POLICY, [erc20Evaluator, uniswapV3Evaluator, aaveV3Evaluator]);
     // Discard audit output in E2E tests
     const sink = new Writable({ write(_chunk, _enc, cb) { cb(); } });
     const auditLogger = new AuditLogger(sink);
@@ -320,6 +382,159 @@ describe('MCP server E2E (InMemoryTransport + LocalEvmSigner)', () => {
     });
   });
 
+  // --- sign_defi_call (Aave V3) ---
+
+  describe('sign_defi_call (Aave V3)', () => {
+    it('should return signed transaction for Aave V3 supply', async () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'supply',
+        args: [USDC, 500000000n, HARDHAT_0_ADDRESS, 0],
+      });
+
+      const result = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: AAVE_V3_POOL,
+          data,
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toMatch(/^0x02f[89]/);
+      expect(result.isError).toBeFalsy();
+    });
+
+    it('should deny Aave V3 borrow with interestRateMode exceeding policy', async () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'borrow',
+        args: [USDC, 100000000n, 3n, 0, HARDHAT_0_ADDRESS], // mode 3 > max 2
+      });
+
+      const result = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: AAVE_V3_POOL,
+          data,
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toContain('Policy denied');
+      expect(text).toContain('interestRateMode');
+      expect(result.isError).toBe(true);
+    });
+
+    it('should reject unknown selector sent to Aave Pool (fail-closed)', async () => {
+      const result = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: AAVE_V3_POOL,
+          data: '0xdeadbeef0000000000000000000000000000000000000000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toContain('Rejected');
+      expect(result.isError).toBe(true);
+    });
+
+    it('should support cross-protocol flow: approve then supply', async () => {
+      // Step 1: ERC-20 approve (grant allowance to Aave Pool)
+      const approveData = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [AAVE_V3_POOL, 500000000n],
+      });
+
+      const approveResult = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: USDC,
+          data: approveData,
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const approveText = (approveResult.content as any[])[0].text;
+      expect(approveText).toMatch(/^0x02f[89]/);
+      expect(approveResult.isError).toBeFalsy();
+
+      // Step 2: Aave supply
+      const supplyData = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'supply',
+        args: [USDC, 500000000n, HARDHAT_0_ADDRESS, 0],
+      });
+
+      const supplyResult = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: AAVE_V3_POOL,
+          data: supplyData,
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const supplyText = (supplyResult.content as any[])[0].text;
+      expect(supplyText).toMatch(/^0x02f[89]/);
+      expect(supplyResult.isError).toBeFalsy();
+    });
+
+    it('should return signed transaction for Aave V3 repay', async () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'repay',
+        args: [USDC, 500000000n, 1n, HARDHAT_0_ADDRESS],
+      });
+
+      const result = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: AAVE_V3_POOL,
+          data,
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toMatch(/^0x02f[89]/);
+      expect(result.isError).toBeFalsy();
+    });
+
+    it('should return signed transaction for Aave V3 withdraw', async () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'withdraw',
+        args: [USDC, 500000000n, HARDHAT_0_ADDRESS],
+      });
+
+      const result = await client.callTool({
+        name: 'sign_defi_call',
+        arguments: {
+          chainId: 1,
+          to: AAVE_V3_POOL,
+          data,
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toMatch(/^0x02f[89]/);
+      expect(result.isError).toBeFalsy();
+    });
+  });
+
   // --- sign_swap unknown protocol rejection ---
 
   describe('sign_swap (fail-closed)', () => {
@@ -400,7 +615,7 @@ describe('MCP server E2E (unsafeRawSign enabled)', () => {
 
   beforeAll(async () => {
     const signer = new LocalEvmSigner();
-    const policyEngine = new PolicyEngine(TEST_POLICY, [erc20Evaluator, uniswapV3Evaluator]);
+    const policyEngine = new PolicyEngine(TEST_POLICY, [erc20Evaluator, uniswapV3Evaluator, aaveV3Evaluator]);
     const sink = new Writable({ write(_chunk, _enc, cb) { cb(); } });
     const auditLogger = new AuditLogger(sink);
 

@@ -9,5 +9,3 @@ coverage/
 .claude_review_state.json
 
 .claude/
-
-.claude-plugin/

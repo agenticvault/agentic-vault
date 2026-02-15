@@ -1,101 +1,140 @@
-# Agentic Vault Wallet
+# Agentic Vault
 
-[![npm version](https://img.shields.io/npm/v/@sd0xdev/agentic-vault)](https://www.npmjs.com/package/@sd0xdev/agentic-vault)
-[![CI](https://github.com/sd0xdev/agentic-vault-wallet/actions/workflows/ci.yml/badge.svg)](https://github.com/sd0xdev/agentic-vault-wallet/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@agenticvault/agentic-vault)](https://www.npmjs.com/package/@agenticvault/agentic-vault)
+[![CI](https://github.com/agenticvault/agentic-vault/actions/workflows/ci.yml/badge.svg)](https://github.com/agenticvault/agentic-vault/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Server-side EVM signing with pluggable providers and agentic capabilities. Expose your wallet to AI agents via MCP (Model Context Protocol) with built-in policy enforcement and audit logging.
+Server-side EVM signing with AWS KMS and built-in DeFi protocol awareness. Expose your wallet to AI agents via MCP, CLI, or OpenClaw with deny-by-default policy enforcement and full audit logging.
 
 ## Features
 
-- **Pluggable signing providers** -- factory-based architecture, currently supports AWS KMS (more coming)
-- **MCP server** -- expose wallet operations as MCP tools for AI agents
-- **Policy engine** -- deny-by-default policy with chain, contract, selector, amount, and deadline constraints
-- **Audit logging** -- structured JSON audit trail for every signing operation
-- **Claude Code plugin** -- 4 built-in skills for interacting with the wallet from Claude Code
+- **HSM-backed signing** -- private keys never leave AWS KMS; only digests are sent for signing
+- **DeFi protocol awareness** -- calldata decoding for ERC-20, Uniswap V3, and Aave V3 with protocol-specific policy rules
+- **Deny-by-default policy engine** -- chain, contract, selector, amount, deadline, and protocol-level constraints
+- **Multiple interfaces** -- use as a TypeScript library, CLI, MCP server, or OpenClaw plugin
+- **Audit logging** -- structured JSON audit trail for every signing operation (approved, denied, errored)
 - **EVM-native** -- built on [viem](https://viem.sh) with full EIP-712 typed data support
-- **Key isolation** -- private keys never leave the HSM; only digests are sent for signing
 
 ## Quick Start
+
+### Prerequisites
+
+- Node.js >= 22
+- AWS KMS key (ECC_SECG_P256K1 / secp256k1) -- see [AWS KMS Setup](#aws-kms-setup)
+- AWS credentials configured (SSO, IAM role, or static credentials)
 
 ### Install
 
 ```bash
-npm install @sd0xdev/agentic-vault
+npm install @agenticvault/agentic-vault
 # or
-pnpm add @sd0xdev/agentic-vault
+pnpm add @agenticvault/agentic-vault
 ```
 
-> Requires Node.js >= 22
+### Environment Setup
 
-### Basic Usage
+Create a `.env` file (see [`.env.example`](.env.example)):
+
+```bash
+VAULT_KEY_ID=alias/my-signing-key
+VAULT_REGION=us-east-1
+```
+
+Both CLI and MCP server use these as fallbacks when `--key-id` / `--region` flags are omitted.
+
+## Choose Your Interface
+
+### 1. TypeScript Library
 
 ```typescript
-import {
-  createSigningProvider,
-  EvmSignerAdapter,
-} from '@sd0xdev/agentic-vault';
+import { createSigningProvider, EvmSignerAdapter } from '@agenticvault/agentic-vault';
 
-// Create a signing provider via factory
 const provider = createSigningProvider({
   provider: 'aws-kms',
   keyId: 'arn:aws:kms:us-east-1:123456789:key/your-key-id',
   region: 'us-east-1',
 });
 
-// Wrap it in an EVM signer adapter
-const signer = new EvmSignerAdapter(provider, {
-  expectedAddress: '0xYourExpectedAddress',
-});
-
-// Use it
+const signer = new EvmSignerAdapter(provider);
 const address = await signer.getAddress();
-const signedTx = await signer.signTransaction({
-  chainId: 1,
-  to: '0xContractAddress',
-  data: '0x...',
-  value: 0n,
-});
 ```
 
-## MCP Server
+For DeFi protocol decoding and policy evaluation:
+
+```typescript
+import { ProtocolDispatcher, createDefaultRegistry } from '@agenticvault/agentic-vault/protocols';
+
+const dispatcher = new ProtocolDispatcher(createDefaultRegistry());
+const intent = dispatcher.dispatch(1, '0xContractAddress', '0x095ea7b3...');
+// → { protocol: 'erc20', action: 'approve', args: { spender, amount } }
+```
+
+### 2. CLI
+
+```bash
+# Sign a DeFi transaction (decoded + policy validated)
+agentic-vault sign --chain-id 1 --to 0x... --data 0x095ea7b3...
+
+# Dry-run: decode + policy check without signing
+agentic-vault dry-run --chain-id 1 --to 0x... --data 0x095ea7b3...
+
+# Encode intent parameters into calldata
+agentic-vault encode erc20:approve --spender 0x... --amount 1000000
+
+# Decode calldata into intent JSON
+agentic-vault decode --chain-id 1 --to 0x... --data 0x095ea7b3...
+
+# Get wallet address
+agentic-vault get-address
+
+# Check signer health
+agentic-vault health
+
+# Start MCP stdio server
+agentic-vault mcp
+```
+
+| Command | Description | Requires AWS |
+|---------|-------------|:---:|
+| `sign` | Decode calldata, policy check, sign | Yes |
+| `sign-permit` | Sign an EIP-2612 permit | Yes |
+| `dry-run` | Decode + policy check (no signing) | No |
+| `encode` | Intent params to calldata hex | No |
+| `decode` | Calldata hex to intent JSON | No |
+| `get-address` | Derive signer address | Yes |
+| `health` | Check KMS key accessibility | Yes |
+| `mcp` | Start MCP stdio server | Yes |
+
+Global options: `--key-id`, `--region`, `--expected-address`, `--policy-config`, `--output` (json/human/raw). The `sign` command also accepts `--yes` to skip TTY confirmation.
+
+### 3. MCP Server (for AI Agents)
 
 The MCP server exposes wallet operations as tools that AI agents can call over stdio.
 
-### Running the Server
-
 ```bash
-npx agentic-vault-mcp \
+npx -y -p @agenticvault/agentic-vault agentic-vault-mcp \
   --key-id arn:aws:kms:us-east-1:123456789:key/your-key-id \
   --region us-east-1 \
-  --expected-address 0xYourAddress \
   --policy-config ./policy.json
 ```
 
-### CLI Arguments
-
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `--key-id <KEY_ID>` | Yes | AWS KMS key ARN or alias |
-| `--region <REGION>` | Yes | AWS region |
-| `--expected-address <ADDR>` | No | Verify derived address matches expected |
-| `--unsafe-raw-sign` | No | Enable `sign_transaction` and `sign_typed_data` tools |
-| `--policy-config <PATH>` | No | Path to policy configuration JSON file |
-
-### MCP Tools
+#### MCP Tools
 
 | Tool | Description | Default |
 |------|-------------|---------|
 | `get_address` | Get the wallet's Ethereum address | Enabled |
 | `health_check` | Verify KMS key configuration and connectivity | Enabled |
-| `sign_swap` | Sign a swap transaction (policy-constrained) | Enabled |
+| `sign_defi_call` | Sign a DeFi transaction with calldata decoding + policy | Enabled |
+| `sign_swap` | Sign a swap transaction (routes through decoder pipeline) | Enabled |
 | `sign_permit` | Sign an EIP-2612 permit (policy-constrained) | Enabled |
 | `sign_transaction` | Raw transaction signing | Disabled (requires `--unsafe-raw-sign`) |
 | `sign_typed_data` | Raw EIP-712 typed data signing | Disabled (requires `--unsafe-raw-sign`) |
 
-### Claude Desktop Configuration
+To enable raw signing tools, add `--unsafe-raw-sign` to the MCP server command.
 
-Add to your `claude_desktop_config.json`:
+#### Claude Desktop / Claude Code Configuration
+
+Add to your MCP config (see [`.mcp.json.example`](.mcp.json.example)):
 
 ```json
 {
@@ -103,19 +142,142 @@ Add to your `claude_desktop_config.json`:
     "agentic-vault": {
       "command": "npx",
       "args": [
+        "-y", "-p", "@agenticvault/agentic-vault",
         "agentic-vault-mcp",
-        "--key-id", "arn:aws:kms:us-east-1:123456789:key/your-key-id",
-        "--region", "us-east-1",
-        "--policy-config", "/path/to/policy.json"
+        "--key-id", "YOUR_KMS_KEY_ID",
+        "--region", "us-east-1"
       ],
       "env": {
-        "AWS_ACCESS_KEY_ID": "your-access-key",
-        "AWS_SECRET_ACCESS_KEY": "your-secret-key"
+        "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
+        "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
+        "AWS_SESSION_TOKEN": "${AWS_SESSION_TOKEN}"
       }
     }
   }
 }
 ```
+
+### 4. OpenClaw Plugin
+
+Install [`@agenticvault/openclaw`](packages/openclaw-plugin/) to use agentic-vault as an OpenClaw agent tool:
+
+```bash
+npm install @agenticvault/openclaw @agenticvault/agentic-vault
+```
+
+4 safe tools are always registered (`vault_get_address`, `vault_health_check`, `vault_sign_defi_call`, `vault_sign_permit`). 2 additional tools (`vault_sign_transaction`, `vault_sign_typed_data`) require `enableUnsafeRawSign: true` in config.
+
+See the [OpenClaw plugin package](packages/openclaw-plugin/) for configuration details.
+
+## Supported Protocols
+
+| Protocol | Actions | Decoder | Policy Evaluator |
+|----------|---------|:---:|:---:|
+| ERC-20 | `approve`, `transfer` | Yes | Yes (allowance cap, spender allowlist) |
+| Uniswap V3 | `exactInputSingle` | Yes | Yes (token pair, slippage, recipient) |
+| Aave V3 | `supply`, `borrow`, `repay`, `withdraw` | Yes | Yes (asset allowlist, interest rate mode) |
+
+Unknown calldata is always rejected (fail-closed). The dispatcher uses 2-stage resolution: contract address first, then selector-based fallback (e.g., ERC-20).
+
+## Configuration
+
+### Policy Config
+
+The policy engine uses a JSON configuration file. Without a policy file, all policy-guarded signing operations (DeFi calls, swaps, permits) are denied. Non-signing tools (`get_address`, `health_check`) and raw signing tools (when opt-in via `--unsafe-raw-sign`) are unaffected by the policy file.
+
+See [`policy.example.json`](policy.example.json) for a complete example.
+
+```json
+{
+  "allowedChainIds": [1, 11155111],
+  "allowedContracts": [
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45",
+    "0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2"
+  ],
+  "allowedSelectors": [
+    "0x095ea7b3", "0xa9059cbb", "0x04e45aaf",
+    "0x617ba037", "0xa415bcad", "0x573ade81", "0x69328dec"
+  ],
+  "maxAmountWei": "1000000000000000000",
+  "maxDeadlineSeconds": 1800,
+  "protocolPolicies": {
+    "erc20": {
+      "maxAllowanceWei": "1000000000000000000",
+      "tokenAllowlist": ["0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"]
+    },
+    "uniswap_v3": {
+      "maxSlippageBps": 100,
+      "tokenAllowlist": ["0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"],
+      "recipientAllowlist": []
+    },
+    "aave_v3": {
+      "tokenAllowlist": ["0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"],
+      "maxInterestRateMode": 2,
+      "maxAmountWei": "1000000000000000000"
+    }
+  }
+}
+```
+
+### Base Policy Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `allowedChainIds` | `number[]` | Allowed chain IDs |
+| `allowedContracts` | `string[]` | Allowed contract addresses (case-insensitive) |
+| `allowedSelectors` | `string[]` | Allowed 4-byte function selectors |
+| `maxAmountWei` | `string` | Maximum transaction value in wei |
+| `maxDeadlineSeconds` | `number` | Maximum deadline as seconds from now |
+
+### Protocol Policy Fields (`protocolPolicies`)
+
+| Field | Protocols | Description |
+|-------|-----------|-------------|
+| `tokenAllowlist` | all | Allowed token contract addresses |
+| `recipientAllowlist` | erc20, uniswap_v3, aave_v3 | Allowed spender (approve) / recipient (transfer) addresses |
+| `maxAllowanceWei` | erc20 | Maximum ERC-20 approval amount |
+| `maxSlippageBps` | uniswap_v3 | Maximum slippage in basis points |
+| `maxInterestRateMode` | aave_v3 | Maximum Aave interest rate mode (1=stable, 2=variable) |
+| `maxAmountWei` | aave_v3 | Maximum Aave operation amount |
+
+## Security Model
+
+### Trust Boundary
+
+```
+ AI Agent (Claude / MCP Client / OpenClaw)
+          |
+          | MCP Protocol / OpenClaw Plugin API
+          v
+ +------------------------------------+
+ |   Agentic Vault                    |
+ |  +-----------+ +--------+ +-----+ |
+ |  | Protocol  | | Policy | | Audit| |
+ |  | Dispatcher| | Engine | | Sink | |
+ |  +-----------+ +--------+ +-----+ |
+ |          |                         |
+ |  +--------------------+           |
+ |  | EvmSignerAdapter   |           |
+ |  +--------------------+           |
+ +-----------|------------------------+
+             | digest only
+             v
+ +------------------------------------+
+ |       AWS KMS (HSM)                |
+ |   Private key never leaves         |
+ +------------------------------------+
+```
+
+### Key Principles
+
+| Principle | Description |
+|-----------|-------------|
+| Key isolation | Private keys remain in the HSM; only 32-byte digests are sent for signing |
+| Deny by default | Policy engine rejects all requests unless explicitly allowed |
+| Fail-closed | Unknown calldata is always rejected; known protocol without evaluator is rejected |
+| Audit trail | Every operation is logged as structured JSON to stderr with caller tag |
+| Minimal surface | Raw signing tools (`sign_transaction`, `sign_typed_data`) are disabled by default |
 
 ## Claude Code Plugin
 
@@ -128,103 +290,17 @@ The project includes 4 Claude Code skills that interact with the wallet through 
 | `check-wallet` | Check wallet address and health status |
 | `audit-log` | Query the audit log |
 
-## Security Model
+## Package Exports
 
-### Trust Boundary
+| Subpath | Contents | MCP dependency |
+|---------|----------|:-:|
+| `@agenticvault/agentic-vault` | Core signing (SigningProvider, EvmSignerAdapter, factory) | No |
+| `@agenticvault/agentic-vault/protocols` | Protocol decoders, dispatcher, PolicyEngine V2, workflows | No |
+| `@agenticvault/agentic-vault/agentic` | MCP server, audit logger | Yes |
 
-```
- AI Agent (Claude / MCP Client)
-          |
-          | MCP Protocol (stdio)
-          v
- +-----------------------------+
- |   Agentic Vault MCP Server  |
- |  +----------+ +-----------+ |
- |  |  Policy   | |   Audit   | |
- |  |  Engine   | |   Logger  | |
- |  +----------+ +-----------+ |
- |          |                   |
- |  +--------------------+     |
- |  | EvmSignerAdapter   |     |
- |  +--------------------+     |
- +-----------|------------------+
-             | digest only
-             v
- +-----------------------------+
- |       AWS KMS (HSM)         |
- |   Private key never leaves  |
- +-----------------------------+
-```
+## AWS KMS Setup
 
-### Key Principles
-
-| Principle | Description |
-|-----------|-------------|
-| Key isolation | Private keys remain in the HSM; only 32-byte digests are sent for signing |
-| Deny by default | Policy engine rejects all requests unless explicitly allowed |
-| Audit trail | Every operation (approved, denied, errored) is logged as structured JSON to stderr |
-| Minimal surface | Raw signing tools (`sign_transaction`, `sign_typed_data`) are disabled by default |
-| Address verification | Optional `--expected-address` flag catches key misconfiguration at startup |
-
-## API Reference
-
-### Interfaces
-
-```typescript
-// src/types.ts -- High-level signer interface
-interface SignerAdapter {
-  getAddress(): Promise<`0x${string}`>;
-  signTransaction(tx: TransactionSerializable): Promise<`0x${string}`>;
-  signTypedData(params: SignTypedDataParams): Promise<SignatureComponents>;
-  healthCheck(): Promise<void>;
-}
-
-// src/core/signing-provider.ts -- Low-level provider interface
-interface SigningProvider {
-  signDigest(digest: Uint8Array): Promise<SignatureBlob>;
-  getPublicKey(): Promise<PublicKeyBlob>;
-  healthCheck(): Promise<void>;
-}
-```
-
-### Exports
-
-| Export | Type | Description |
-|--------|------|-------------|
-| `createSigningProvider` | Function | Factory to create a `SigningProvider` from config |
-| `EvmSignerAdapter` | Class | Provider-agnostic EVM signer implementing `SignerAdapter` |
-| `AwsKmsProvider` | Class | AWS KMS implementation of `SigningProvider` |
-| `AwsKmsClient` | Class | AWS KMS client wrapper |
-| `KmsSignerAdapter` | Class | Legacy signer adapter (backward compatibility) |
-| `PolicyEngine` | Class | Policy evaluation engine |
-| `AuditLogger` | Class | Structured JSON audit logger |
-| `createMcpServer` | Function | Create an MCP server instance |
-| `startStdioServer` | Function | Create and start an MCP server over stdio |
-| `parseDerSignature` | Function | Parse DER-encoded ECDSA signature |
-| `normalizeSignature` | Function | Normalize signature to low-s form |
-| `resolveRecoveryParam` | Function | Resolve ECDSA recovery parameter |
-| `publicToAddress` | Function | Derive Ethereum address from public key |
-
-### Type Exports
-
-| Type | Source |
-|------|--------|
-| `SignerAdapter`, `SignatureComponents`, `SignTypedDataParams` | `src/types.ts` |
-| `SigningProvider`, `SignatureBlob`, `PublicKeyBlob` | `src/core/signing-provider.ts` |
-| `SigningProviderConfig`, `AwsKmsSigningProviderConfig` | `src/provider/factory.ts` |
-| `PolicyConfig`, `PolicyRequest`, `PolicyEvaluation` | `src/agentic/policy/types.ts` |
-| `AuditEntry` | `src/agentic/audit/types.ts` |
-| `EvmSignerAdapterConfig` | `src/core/evm-signer-adapter.ts` |
-| `KmsSignerConfig` | `src/kms-signer.ts` |
-| `IKmsClient`, `KmsKeyMetadata` | `src/kms-client.ts` |
-
-## Providers
-
-### AWS KMS
-
-#### Key Creation
-
-Create an ECC_SECG_P256K1 (secp256k1) key in AWS KMS:
+### Key Creation
 
 ```bash
 aws kms create-key \
@@ -233,9 +309,9 @@ aws kms create-key \
   --description "Agentic Vault EVM signing key"
 ```
 
-#### IAM Policy
+### IAM Policy
 
-Minimum required permissions for the signing service:
+Minimum required permissions:
 
 ```json
 {
@@ -243,69 +319,12 @@ Minimum required permissions for the signing service:
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": [
-        "kms:Sign",
-        "kms:GetPublicKey",
-        "kms:DescribeKey"
-      ],
+      "Action": ["kms:Sign", "kms:GetPublicKey", "kms:DescribeKey"],
       "Resource": "arn:aws:kms:REGION:ACCOUNT:key/KEY_ID"
     }
   ]
 }
 ```
-
-#### Provider Config
-
-```typescript
-import { createSigningProvider } from '@sd0xdev/agentic-vault';
-
-const provider = createSigningProvider({
-  provider: 'aws-kms',
-  keyId: 'arn:aws:kms:us-east-1:123456789:key/your-key-id',
-  region: 'us-east-1',
-});
-```
-
-## Configuration
-
-### Policy Config
-
-The policy engine uses a JSON configuration file to define allowed operations. All fields are required; leave arrays empty and numeric fields at `0` to deny all.
-
-```json
-{
-  "allowedChainIds": [1, 137, 42161],
-  "allowedContracts": [
-    "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45"
-  ],
-  "allowedSelectors": [
-    "0x5ae401dc"
-  ],
-  "maxAmountWei": "1000000000000000000",
-  "maxDeadlineSeconds": 300
-}
-```
-
-### Policy Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `allowedChainIds` | `number[]` | Whitelist of allowed chain IDs |
-| `allowedContracts` | `string[]` | Whitelist of allowed contract addresses (case-insensitive) |
-| `allowedSelectors` | `string[]` | Whitelist of allowed 4-byte function selectors |
-| `maxAmountWei` | `string` | Maximum transaction value in wei (as decimal string in JSON, `bigint` internally) |
-| `maxDeadlineSeconds` | `number` | Maximum allowed deadline as seconds from now |
-
-### Policy Behavior
-
-| Rule | Description |
-|------|-------------|
-| Deny by default | Requests are denied unless all applicable checks pass |
-| Chain ID check | `chainId` must be in `allowedChainIds` |
-| Contract check | `to` address must be in `allowedContracts` |
-| Selector check | Function selector (first 4 bytes of calldata) must be in `allowedSelectors` |
-| Amount check | Transaction value must not exceed `maxAmountWei` |
-| Deadline check | Deadline must be in the future and within `maxDeadlineSeconds` from now |
 
 ## Contributing
 
@@ -314,7 +333,7 @@ The policy engine uses a JSON configuration file to define allowed operations. A
 3. Write tests for your changes
 4. Ensure all checks pass:
    ```bash
-   pnpm lint:fix && pnpm typecheck && pnpm test
+   pnpm lint:fix && pnpm typecheck && pnpm test:unit
    ```
 5. Commit your changes (`git commit -m 'feat: add my feature'`)
 6. Push to the branch (`git push origin feat/my-feature`)

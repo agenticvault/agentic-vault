@@ -124,7 +124,7 @@ Import asymmetry is intentional:
 |----------|------------|-----------|--------|
 | AI Agent (MCP) | MCP `sign_swap` / `sign_permit` | MCP transport | Implemented |
 | Claude Code (skills) | Skills → MCP tools | Skill markdown | Implemented |
-| Developer (programmatic) | `@sd0xdev/agentic-vault/protocols` | TypeScript SDK | [Planned] |
+| Developer (programmatic) | `@agenticvault/agentic-vault/protocols` | TypeScript SDK | [Planned] |
 | Backend service | `./protocols` + `.` (signer) | TypeScript SDK | [Planned] |
 
 ## 5. Feature Specs

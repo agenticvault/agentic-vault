@@ -83,7 +83,7 @@
 - [x] CLI 與 MCP 共用相同 PolicyEngine + AuditSink（security parity）
 
 ### 6c. SDK Export
-- [x] Workflows 可透過 `@sd0xdev/agentic-vault/protocols` import
+- [x] Workflows 可透過 `@agenticvault/agentic-vault/protocols` import
 - [x] `./protocols` subpath 不拉入 `@modelcontextprotocol/*` 依賴
 
 ### CI Gates

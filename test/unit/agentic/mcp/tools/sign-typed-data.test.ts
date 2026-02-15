@@ -4,6 +4,12 @@ import { registerSignTypedData } from '@/agentic/mcp/tools/sign-typed-data.js';
 import { type ToolContext } from '@/agentic/mcp/tools/shared.js';
 
 // ============================================================================
+// Types
+// ============================================================================
+
+type ToolHandlerResult = { content: { type: string; text: string }[]; isError?: boolean };
+
+// ============================================================================
 // Helpers
 // ============================================================================
 
@@ -29,7 +35,7 @@ function getToolHandler(server: McpServer, toolName: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tools = (server as any)._registeredTools as Record<
     string,
-    { handler: (args: Record<string, unknown>) => Promise<any> }
+    { handler: (args: Record<string, unknown>) => Promise<ToolHandlerResult> }
   >;
   return tools[toolName].handler;
 }
@@ -48,8 +54,8 @@ const SAMPLE_ARGS = {
 describe('sign_typed_data tool', () => {
   let server: McpServer;
   let ctx: ToolContext;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let handler: (args: Record<string, unknown>) => Promise<any>;
+   
+  let handler: (args: Record<string, unknown>) => Promise<ToolHandlerResult>;
 
   beforeEach(() => {
     server = new McpServer({ name: 'test', version: '0.0.1' });

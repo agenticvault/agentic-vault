@@ -33,14 +33,14 @@ Agentic Vault Wallet 由既有 `@sd0xdev/vaultsign` v0.2.0 提取為獨立專案
 
 ## Decision 1: Repo 策略與命名
 
-**狀態**: Accepted
+**狀態**: Superseded by Namespace Migration (2026-02-15)
 
 ### 決策內容
 
 | 項目 | 決策 |
 |------|------|
-| GitHub Repo | `sd0xdev/agentic-vault-wallet` |
-| npm 套件名稱 | `@sd0xdev/agentic-vault` |
+| GitHub Repo | `agenticvault/agentic-vault` |
+| npm 套件名稱 | `@agenticvault/agentic-vault` |
 | 產品名稱 | Agentic Vault Wallet |
 | 提取方式 | 從 monorepo `packages/vaultsign/` 複製至新 repo |
 
@@ -50,7 +50,7 @@ Agentic Vault Wallet 由既有 `@sd0xdev/vaultsign` v0.2.0 提取為獨立專案
 |------|------------|-------------------|
 | npm scope 註冊 | 已持有 | 需另外申請 |
 | 品牌一致性 | 與既有 `@sd0xdev/vaultsign` 一致 | 全新 scope |
-| 棄用遷移 | `@sd0xdev/vaultsign` -> `@sd0xdev/agentic-vault`，同 scope 遷移順暢 | 跨 scope 遷移，使用者負擔較高 |
+| 棄用遷移 | `@sd0xdev/vaultsign` -> `@agenticvault/agentic-vault`，同 scope 遷移順暢 | 跨 scope 遷移，使用者負擔較高 |
 | 未來擴充 | 統一管理所有套件 | 僅限此專案 |
 
 ### Consequences
@@ -58,6 +58,8 @@ Agentic Vault Wallet 由既有 `@sd0xdev/vaultsign` v0.2.0 提取為獨立專案
 - 正面：維持既有 npm scope 生態，降低遷移成本
 - 負面：產品名稱與 scope 不完全吻合（`agentic-vault-wallet` vs `@sd0xdev`）
 - 風險：無顯著風險
+
+> **Superseded (2026-02-15)**: v0.1.0 尚未發佈，決定遷移至專案專屬 namespace `@agenticvault`。詳見 [Namespace Migration](../../features/v0-initial-release/requests/2026-02-15-namespace-migration.md)。新命名：GitHub `agenticvault/agentic-vault`、npm `@agenticvault/agentic-vault`、domain `agenticvault.dev`。
 
 ---
 
@@ -136,29 +138,41 @@ Agentic Vault Wallet 由既有 `@sd0xdev/vaultsign` v0.2.0 提取為獨立專案
 
 ## Decision 4: OpenClaw 整合策略
 
-**狀態**: Accepted
+**狀態**: Accepted (Revised — Phase 1.5 controlled launch)
 
 ### 決策內容
 
 | Phase | 決策 | 原因 |
 |-------|------|------|
-| Phase 1 | **不支援** OpenClaw | 2026/02 惡意 plugin 危機，安全風險過高 |
-| Phase 2 | 有條件支援 | 需滿足下列全部條件 |
+| ~~Phase 1~~ | ~~不支援 OpenClaw~~ | ~~2026/02 惡意 plugin 危機，安全風險過高~~ |
+| **Phase 1.5** | **Controlled launch** | HSM boundary + policy engine 降低關鍵風險 |
+| Phase 2 | 有條件擴展 | 視生態系安全機制成熟度 |
 
-### Phase 2 啟用條件
+### 風險重新評估
 
-| # | 條件 | 說明 |
+原始評估因 ClawHavoc 事件（2026/01, 341 malicious plugins）而全面推遲。經引入 HSM boundary、policy engine、和 deny-by-default 機制後重新評估：
+
+| 風險 | 原始評估 | 重新評估 | 原因 |
+|------|---------|---------|------|
+| Key exfiltration | High | **Low** | HSM boundary — private key 永遠不離開 KMS |
+| Unauthorized signing | High | **Medium** | Policy engine + deny-by-default mitigates |
+| Supply chain attack | High | **Medium** | npm provenance + OIDC + 獨立套件 |
+| Prompt injection → signing | N/A | **Medium** | Policy engine 限制 chain/contract/amount/deadline |
+
+### Phase 1.5 必要控制（4 項全部強制）
+
+| # | 控制 | 說明 |
 |---|------|------|
-| 1 | Verified publisher | OpenClaw 需提供發佈者身份驗證機制 |
-| 2 | 最小權限 | Plugin 僅獲取完成功能所需的最小權限 |
-| 3 | Kill switch | 可即時停用任何 plugin |
-| 4 | 獨立安全審查 | 第三方安全稽核通過 |
+| 1 | Policy engine 強制啟用 | 無 policy config 時 deny-all（所有簽名操作被拒絕） |
+| 2 | 高風險工具雙重保護 | `{ optional: true }` + `enableUnsafeRawSign` config flag（與 CLI `--unsafe-raw-sign` 對齊） |
+| 3 | npm Trusted Publishers (OIDC) | `--provenance` 確保套件來源可驗證 |
+| 4 | 版本固定指引 | 使用者應固定 exact version，禁止 auto-install |
 
 ### Consequences
 
-- 正面：避免在生態系安全機制不成熟時引入風險
-- 負面：Phase 1 缺少 OpenClaw 生態系整合，可能影響早期採用
-- 緩解：Phase 1 專注 Claude Code plugin 與 MCP server，仍具 agentic 能力
+- 正面：在安全控制下進入 OpenClaw 生態系，擴大產品觸及範圍
+- 負面：需額外維護獨立套件（`@agenticvault/openclaw`）
+- 緩解：Thin adapter pattern 降低維護成本；CI 獨立觸發
 
 ---
 

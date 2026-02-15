@@ -27,6 +27,14 @@ vi.mock('@/protocols/index.js', () => {
     PolicyEngine: MockPolicyEngine,
     erc20Evaluator: { protocol: 'erc20', evaluate: vi.fn() },
     uniswapV3Evaluator: { protocol: 'uniswap_v3', evaluate: vi.fn() },
+    aaveV3Evaluator: { protocol: 'aave_v3', evaluate: vi.fn() },
+    loadPolicyConfigFromFile: vi.fn().mockReturnValue({
+      allowedChainIds: [1],
+      allowedContracts: [],
+      allowedSelectors: [],
+      maxAmountWei: 1000000000000000000n,
+      maxDeadlineSeconds: 3600,
+    }),
   };
 });
 
@@ -40,17 +48,10 @@ vi.mock('@/agentic/index.js', () => {
   };
 });
 
-vi.mock('node:fs', () => ({
-  readFileSync: vi.fn().mockReturnValue(JSON.stringify({
-    allowedChainIds: [1],
-    allowedContracts: [],
-    allowedSelectors: [],
-    maxAmountWei: '1000000000000000000',
-    maxDeadlineSeconds: 3600,
-  })),
-}));
-
 import { runMcp } from '@/cli/commands/mcp.js';
+import { loadPolicyConfigFromFile } from '@/protocols/index.js';
+
+const mockLoadPolicyConfigFromFile = vi.mocked(loadPolicyConfigFromFile);
 
 describe('runMcp CLI command', () => {
   afterEach(() => {
@@ -72,9 +73,8 @@ describe('runMcp CLI command', () => {
   });
 
   it('should load policy config from file when policyConfig is provided', async () => {
-    const { readFileSync } = await import('node:fs');
     await runMcp({ keyId: 'k', region: 'r', policyConfig: '/tmp/policy.json' }, []);
-    expect(readFileSync).toHaveBeenCalledWith('/tmp/policy.json', 'utf-8');
+    expect(mockLoadPolicyConfigFromFile).toHaveBeenCalledWith('/tmp/policy.json');
     expect(mockStartStdioServer).toHaveBeenCalled();
   });
 

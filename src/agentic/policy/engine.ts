@@ -1,2 +1,2 @@
-/** @deprecated Use @sd0xdev/agentic-vault/protocols instead */
+/** @deprecated Use @agenticvault/agentic-vault/protocols instead */
 export { PolicyEngine } from '../index.js';

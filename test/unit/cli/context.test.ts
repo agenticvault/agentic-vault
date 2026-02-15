@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { parseGlobalArgs } from '@/cli/context.js';
 
 // Mock heavy dependencies so buildWorkflowContext / buildDryRunContext can be tested
@@ -60,12 +60,53 @@ describe('parseGlobalArgs', () => {
     expect(result.policyConfig).toBe('/tmp/policy.json');
   });
 
-  it('should throw when --key-id is missing', () => {
-    expect(() => parseGlobalArgs(['--region', 'us-east-1'])).toThrow('--key-id is required');
-  });
+  describe('environment variable fallback', () => {
+    const originalEnv = process.env;
 
-  it('should throw when --region is missing', () => {
-    expect(() => parseGlobalArgs(['--key-id', 'abc'])).toThrow('--region is required');
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+    });
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    it('should use VAULT_KEY_ID when --key-id not provided', () => {
+      process.env.VAULT_KEY_ID = 'env-key-id';
+      const result = parseGlobalArgs(['--region', 'us-east-1']);
+      expect(result.keyId).toBe('env-key-id');
+    });
+
+    it('should use VAULT_REGION when --region not provided', () => {
+      process.env.VAULT_REGION = 'eu-west-1';
+      const result = parseGlobalArgs(['--key-id', 'k1']);
+      expect(result.region).toBe('eu-west-1');
+    });
+
+    it('should prefer --key-id flag over VAULT_KEY_ID env var', () => {
+      process.env.VAULT_KEY_ID = 'env-key-id';
+      const result = parseGlobalArgs(['--key-id', 'flag-key-id', '--region', 'us-east-1']);
+      expect(result.keyId).toBe('flag-key-id');
+    });
+
+    it('should prefer --region flag over VAULT_REGION env var', () => {
+      process.env.VAULT_REGION = 'env-region';
+      const result = parseGlobalArgs(['--key-id', 'k1', '--region', 'flag-region']);
+      expect(result.region).toBe('flag-region');
+    });
+
+    it('should throw when neither --key-id flag nor VAULT_KEY_ID env var present', () => {
+      delete process.env.VAULT_KEY_ID;
+      expect(() => parseGlobalArgs(['--region', 'us-east-1'])).toThrow(
+        '--key-id or VAULT_KEY_ID environment variable is required',
+      );
+    });
+
+    it('should throw when neither --region flag nor VAULT_REGION env var present', () => {
+      delete process.env.VAULT_REGION;
+      expect(() => parseGlobalArgs(['--key-id', 'abc'])).toThrow(
+        '--region or VAULT_REGION environment variable is required',
+      );
+    });
   });
 
   it('should ignore unknown flags without error', () => {

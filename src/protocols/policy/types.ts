@@ -36,6 +36,7 @@ export interface ProtocolPolicyConfig {
   maxSlippageBps?: number;
   maxInterestRateMode?: number;
   maxAllowanceWei?: bigint;
+  maxAmountWei?: bigint;
 }
 
 export interface PolicyConfigV2 extends PolicyConfig {

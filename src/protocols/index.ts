@@ -20,9 +20,11 @@ export { ProtocolDispatcher } from './dispatcher.js';
 // Decoders
 export { erc20Decoder } from './decoders/erc20.js';
 export { uniswapV3Decoder } from './decoders/uniswap-v3.js';
+export { aaveV3Decoder } from './decoders/aave-v3.js';
 
 // Policy V2
 export { PolicyEngine } from './policy/engine.js';
+export { parsePolicyConfig, loadPolicyConfigFromFile } from './policy/loader.js';
 export type {
   PolicyConfig,
   PolicyRequest,
@@ -40,6 +42,7 @@ export type { ProtocolAction } from './catalog.js';
 // Evaluators
 export { erc20Evaluator } from './policy/evaluators/erc20.js';
 export { uniswapV3Evaluator } from './policy/evaluators/uniswap-v3.js';
+export { aaveV3Evaluator } from './policy/evaluators/aave-v3.js';
 
 // Workflows
 export {

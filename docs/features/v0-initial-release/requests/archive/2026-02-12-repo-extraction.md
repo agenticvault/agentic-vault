@@ -8,13 +8,13 @@
 
 ## Background
 
-從 monorepo `packages/vaultsign/` 複製程式碼至新的獨立 repo `sd0xdev/agentic-vault-wallet`，更新 package.json 及專案設定。
+從 monorepo `packages/vaultsign/` 複製程式碼至新的獨立 repo `agenticvault/agentic-vault`，更新 package.json 及專案設定。
 
 ## Requirements
 
 - 建立新專案目錄 `/Users/yuhao/Project/agentic-vault-wallet/`
 - 複製 `src/`、`test/`、`LICENSE` 等核心檔案
-- 更新 `package.json`（name → `@sd0xdev/agentic-vault`、repository、keywords）
+- 更新 `package.json`（name → `@agenticvault/agentic-vault`、repository、keywords）
 - 修正 `tsconfig.json`（移除 monorepo extends）
 - 修正 `vitest.config.ts`（移除 monorepo .env 路徑）
 - 初始化 git repo
@@ -31,7 +31,7 @@
 
 - [x] 新專案目錄已建立
 - [x] 核心原始碼已複製（5 source files）
-- [x] `package.json` name 改為 `@sd0xdev/agentic-vault`
+- [x] `package.json` name 改為 `@agenticvault/agentic-vault`
 - [x] `tsconfig.json` 已修正為獨立設定
 - [x] `vitest.config.ts` 已修正為獨立設定
 - [x] `pnpm install` 成功

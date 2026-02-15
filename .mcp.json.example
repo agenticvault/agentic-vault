@@ -1,11 +1,12 @@
 {
   "mcpServers": {
     "agentic-vault": {
-      "command": "node",
+      "command": "npx",
       "args": [
-        "dist/agentic/cli.js",
-        "--key-id", "${VAULT_KEY_ID}",
-        "--region", "${VAULT_REGION}"
+        "-y", "-p", "@agenticvault/agentic-vault",
+        "agentic-vault-mcp",
+        "--key-id", "YOUR_KMS_KEY_ID",
+        "--region", "us-east-1"
       ],
       "env": {
         "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",

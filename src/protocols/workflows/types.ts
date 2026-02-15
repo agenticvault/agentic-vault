@@ -1,5 +1,5 @@
 /** Caller identity for audit trail */
-export type WorkflowCaller = 'mcp-client' | 'cli' | 'sdk';
+export type WorkflowCaller = 'mcp-client' | 'cli' | 'sdk' | 'openclaw';
 
 /** Audit sink interface — consumers inject their own implementation */
 export interface AuditSink {

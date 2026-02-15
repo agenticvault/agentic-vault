@@ -1,4 +1,4 @@
-// ─── Policy Engine (deprecated — use @sd0xdev/agentic-vault/protocols) ───
+// ─── Policy Engine (deprecated — use @agenticvault/agentic-vault/protocols) ───
 export { PolicyEngine } from '../protocols/index.js';
 export type {
   PolicyConfig,

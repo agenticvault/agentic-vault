@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { encodeFunctionData, type Address, type Hex } from 'viem';
 import { ProtocolDispatcher, createDefaultRegistry } from '@/protocols/index.js';
-import { PolicyEngine, erc20Evaluator } from '@/protocols/index.js';
+import { PolicyEngine, erc20Evaluator, aaveV3Evaluator } from '@/protocols/index.js';
 import type { PolicyConfigV2 } from '@/protocols/index.js';
 
 // ============================================================================
@@ -12,6 +12,7 @@ const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address;
 const SPENDER = '0x1111111111111111111111111111111111111111' as Address;
 const RECIPIENT = '0x2222222222222222222222222222222222222222' as Address;
 const UNAUTHORIZED_ADDR = '0x9999999999999999999999999999999999999999' as Address;
+const AAVE_V3_POOL = '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2' as Address;
 
 const erc20Abi = [
   {
@@ -33,6 +34,57 @@ const erc20Abi = [
       { name: 'amount', type: 'uint256' as const },
     ],
     outputs: [{ name: '', type: 'bool' as const }],
+  },
+] as const;
+
+const aaveV3Abi = [
+  {
+    name: 'supply' as const,
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [
+      { name: 'asset', type: 'address' as const },
+      { name: 'amount', type: 'uint256' as const },
+      { name: 'onBehalfOf', type: 'address' as const },
+      { name: 'referralCode', type: 'uint16' as const },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'borrow' as const,
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [
+      { name: 'asset', type: 'address' as const },
+      { name: 'amount', type: 'uint256' as const },
+      { name: 'interestRateMode', type: 'uint256' as const },
+      { name: 'referralCode', type: 'uint16' as const },
+      { name: 'onBehalfOf', type: 'address' as const },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'repay' as const,
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [
+      { name: 'asset', type: 'address' as const },
+      { name: 'amount', type: 'uint256' as const },
+      { name: 'interestRateMode', type: 'uint256' as const },
+      { name: 'onBehalfOf', type: 'address' as const },
+    ],
+    outputs: [{ name: '', type: 'uint256' as const }],
+  },
+  {
+    name: 'withdraw' as const,
+    type: 'function' as const,
+    stateMutability: 'nonpayable' as const,
+    inputs: [
+      { name: 'asset', type: 'address' as const },
+      { name: 'amount', type: 'uint256' as const },
+      { name: 'to', type: 'address' as const },
+    ],
+    outputs: [{ name: '', type: 'uint256' as const }],
   },
 ] as const;
 
@@ -311,6 +363,235 @@ describe('Protocol → Policy integration flow', () => {
 
       expect(result.allowed).toBe(true);
       expect(result.violations).toHaveLength(0);
+    });
+  });
+
+  // --- Aave V3 supply ---
+
+  describe('Aave V3 supply', () => {
+    function createAavePermissiveConfig(overrides?: Partial<PolicyConfigV2>): PolicyConfigV2 {
+      return {
+        allowedChainIds: [1],
+        allowedContracts: [AAVE_V3_POOL.toLowerCase() as `0x${string}`, USDC.toLowerCase() as `0x${string}`],
+        allowedSelectors: ['0x617ba037', '0xa415bcad', '0x573ade81', '0x69328dec', '0x095ea7b3'],
+        maxAmountWei: 10n ** 18n,
+        maxDeadlineSeconds: 3600,
+        protocolPolicies: {
+          aave_v3: {
+            tokenAllowlist: [USDC.toLowerCase() as Address],
+            recipientAllowlist: [
+              RECIPIENT.toLowerCase() as Address,
+            ],
+            maxAmountWei: 10n ** 18n,
+            maxInterestRateMode: 2,
+          },
+          erc20: {
+            tokenAllowlist: [USDC.toLowerCase() as Address],
+            recipientAllowlist: [
+              AAVE_V3_POOL.toLowerCase() as Address,
+            ],
+            maxAllowanceWei: 10n ** 18n,
+          },
+        },
+        ...overrides,
+      };
+    }
+
+    it('should allow a valid Aave V3 supply within policy limits', () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'supply',
+        args: [USDC, 500000000n, RECIPIENT, 0],
+      });
+
+      const intent = dispatcher.dispatch(1, AAVE_V3_POOL, data);
+      expect(intent.protocol).toBe('aave_v3');
+      expect(intent.protocol !== 'unknown' && 'action' in intent ? intent.action : '').toBe('supply');
+
+      const engine = new PolicyEngine(createAavePermissiveConfig(), [erc20Evaluator, aaveV3Evaluator]);
+      const result = engine.evaluate({
+        chainId: 1,
+        to: AAVE_V3_POOL.toLowerCase() as `0x${string}`,
+        selector: data.slice(0, 10) as Hex,
+        intent,
+      });
+
+      expect(result.allowed).toBe(true);
+      expect(result.violations).toHaveLength(0);
+    });
+
+    it('should deny Aave V3 borrow when interestRateMode exceeds maxInterestRateMode', () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'borrow',
+        args: [USDC, 100000000n, 3n, 0, RECIPIENT], // interestRateMode=3 > max=2
+      });
+
+      const intent = dispatcher.dispatch(1, AAVE_V3_POOL, data);
+      const engine = new PolicyEngine(createAavePermissiveConfig(), [erc20Evaluator, aaveV3Evaluator]);
+      const result = engine.evaluate({
+        chainId: 1,
+        to: AAVE_V3_POOL.toLowerCase() as `0x${string}`,
+        selector: data.slice(0, 10) as Hex,
+        intent,
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.violations).toEqual(
+        expect.arrayContaining([expect.stringContaining('interestRateMode')]),
+      );
+    });
+
+    it('should accumulate multiple violations (token + recipient + amount)', () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'supply',
+        args: [UNAUTHORIZED_ADDR, 2n * 10n ** 18n, UNAUTHORIZED_ADDR, 0], // wrong token, wrong recipient, too much
+      });
+
+      const intent = dispatcher.dispatch(1, AAVE_V3_POOL, data);
+      const engine = new PolicyEngine(createAavePermissiveConfig(), [erc20Evaluator, aaveV3Evaluator]);
+      const result = engine.evaluate({
+        chainId: 1,
+        to: AAVE_V3_POOL.toLowerCase() as `0x${string}`,
+        selector: data.slice(0, 10) as Hex,
+        intent,
+      });
+
+      expect(result.allowed).toBe(false);
+      // tokenAllowlist + recipientAllowlist + maxAmountWei = 3 violations
+      expect(result.violations.length).toBeGreaterThanOrEqual(3);
+      expect(result.violations).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('tokenAllowlist'),
+          expect.stringContaining('recipientAllowlist'),
+          expect.stringContaining('maxAmountWei'),
+        ]),
+      );
+    });
+
+    it('should allow a valid Aave V3 repay within policy limits', () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'repay',
+        args: [USDC, 500000000n, 2n, RECIPIENT],
+      });
+
+      const intent = dispatcher.dispatch(1, AAVE_V3_POOL, data);
+      expect(intent.protocol).toBe('aave_v3');
+      expect(intent.protocol !== 'unknown' && 'action' in intent ? intent.action : '').toBe('repay');
+
+      const engine = new PolicyEngine(createAavePermissiveConfig(), [erc20Evaluator, aaveV3Evaluator]);
+      const result = engine.evaluate({
+        chainId: 1,
+        to: AAVE_V3_POOL.toLowerCase() as `0x${string}`,
+        selector: data.slice(0, 10) as Hex,
+        intent,
+      });
+
+      expect(result.allowed).toBe(true);
+      expect(result.violations).toHaveLength(0);
+    });
+
+    it('should allow a valid Aave V3 withdraw within policy limits', () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'withdraw',
+        args: [USDC, 500000000n, RECIPIENT],
+      });
+
+      const intent = dispatcher.dispatch(1, AAVE_V3_POOL, data);
+      expect(intent.protocol).toBe('aave_v3');
+      expect(intent.protocol !== 'unknown' && 'action' in intent ? intent.action : '').toBe('withdraw');
+
+      const engine = new PolicyEngine(createAavePermissiveConfig(), [erc20Evaluator, aaveV3Evaluator]);
+      const result = engine.evaluate({
+        chainId: 1,
+        to: AAVE_V3_POOL.toLowerCase() as `0x${string}`,
+        selector: data.slice(0, 10) as Hex,
+        intent,
+      });
+
+      expect(result.allowed).toBe(true);
+      expect(result.violations).toHaveLength(0);
+    });
+
+    it('should deny Aave V3 withdraw with unauthorized recipient', () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'withdraw',
+        args: [USDC, 100n, UNAUTHORIZED_ADDR],
+      });
+
+      const intent = dispatcher.dispatch(1, AAVE_V3_POOL, data);
+      const engine = new PolicyEngine(createAavePermissiveConfig(), [erc20Evaluator, aaveV3Evaluator]);
+      const result = engine.evaluate({
+        chainId: 1,
+        to: AAVE_V3_POOL.toLowerCase() as `0x${string}`,
+        selector: data.slice(0, 10) as Hex,
+        intent,
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.violations).toEqual(
+        expect.arrayContaining([expect.stringContaining('recipientAllowlist')]),
+      );
+    });
+
+    it('should deny when Aave V3 intent exists but no evaluator registered (fail-closed)', () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'supply',
+        args: [USDC, 100n, RECIPIENT, 0],
+      });
+
+      const intent = dispatcher.dispatch(1, AAVE_V3_POOL, data);
+      expect(intent.protocol).toBe('aave_v3');
+
+      // No Aave evaluator passed
+      const engine = new PolicyEngine(createAavePermissiveConfig(), [erc20Evaluator]);
+      const result = engine.evaluate({
+        chainId: 1,
+        to: AAVE_V3_POOL.toLowerCase() as `0x${string}`,
+        selector: data.slice(0, 10) as Hex,
+        intent,
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.violations).toEqual(
+        expect.arrayContaining([expect.stringContaining('No policy evaluator')]),
+      );
+    });
+
+    it('should deny when evaluator registered but protocolPolicies.aave_v3 missing (fail-closed)', () => {
+      const data = encodeFunctionData({
+        abi: aaveV3Abi,
+        functionName: 'supply',
+        args: [USDC, 100n, RECIPIENT, 0],
+      });
+
+      const intent = dispatcher.dispatch(1, AAVE_V3_POOL, data);
+
+      // Config without aave_v3 in protocolPolicies
+      const config = createAavePermissiveConfig({
+        protocolPolicies: {
+          erc20: {
+            tokenAllowlist: [USDC.toLowerCase() as Address],
+          },
+        },
+      });
+      const engine = new PolicyEngine(config, [erc20Evaluator, aaveV3Evaluator]);
+      const result = engine.evaluate({
+        chainId: 1,
+        to: AAVE_V3_POOL.toLowerCase() as `0x${string}`,
+        selector: data.slice(0, 10) as Hex,
+        intent,
+      });
+
+      expect(result.allowed).toBe(false);
+      expect(result.violations).toEqual(
+        expect.arrayContaining([expect.stringContaining('No policy evaluator')]),
+      );
     });
   });
 });

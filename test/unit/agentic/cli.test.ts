@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 
 // ============================================================================
 // Patch process.argv BEFORE module load (hoisted phase) so main() doesn't throw
@@ -31,6 +31,7 @@ vi.mock('@/protocols/index.js', () => ({
   },
   erc20Evaluator: { protocol: 'erc20', supportedSelectors: [], evaluate: vi.fn() },
   uniswapV3Evaluator: { protocol: 'uniswap_v3', evaluate: vi.fn() },
+  aaveV3Evaluator: { protocol: 'aave_v3', evaluate: vi.fn() },
 }));
 
 // Mock audit logger
@@ -45,10 +46,7 @@ vi.mock('@/agentic/mcp/server.js', () => ({
   startStdioServer: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { parseArgs, loadPolicyConfig } from '@/agentic/cli.js';
-import { readFileSync } from 'node:fs';
-
-const mockReadFileSync = vi.mocked(readFileSync);
+import { parseArgs } from '@/agentic/cli.js';
 
 // ============================================================================
 // Tests
@@ -99,18 +97,6 @@ describe('CLI utilities', () => {
       });
     });
 
-    it('should throw when --key-id is missing', () => {
-      const argv = ['node', 'cli.js', '--region', 'us-east-1'];
-
-      expect(() => parseArgs(argv)).toThrow('--key-id is required');
-    });
-
-    it('should throw when --region is missing', () => {
-      const argv = ['node', 'cli.js', '--key-id', 'k1'];
-
-      expect(() => parseArgs(argv)).toThrow('--region is required');
-    });
-
     it('should set unsafeRawSign when flag is present', () => {
       const argv = [
         'node', 'cli.js',
@@ -144,110 +130,61 @@ describe('CLI utilities', () => {
     });
   });
 
-  describe('loadPolicyConfig', () => {
-    it('should parse V1 config (no protocolPolicies)', () => {
-      mockReadFileSync.mockReturnValue(JSON.stringify({
-        allowedChainIds: [1, 137],
-        allowedContracts: ['0xABC'],
-        allowedSelectors: ['0x095EA7B3'],
-        maxAmountWei: '1000000000000000000',
-        maxDeadlineSeconds: 3600,
-      }));
+  describe('environment variable fallback', () => {
+    const originalEnv = process.env;
 
-      const config = loadPolicyConfig('/fake/path.json');
-
-      expect(config.allowedChainIds).toEqual([1, 137]);
-      expect(config.allowedContracts).toEqual(['0xabc']);
-      expect(config.allowedSelectors).toEqual(['0x095ea7b3']);
-      expect(config.maxAmountWei).toBe(1000000000000000000n);
-      expect(config.maxDeadlineSeconds).toBe(3600);
-      expect(config.protocolPolicies).toBeUndefined();
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+    });
+    afterEach(() => {
+      process.env = originalEnv;
     });
 
-    it('should parse V2 config with protocolPolicies', () => {
-      mockReadFileSync.mockReturnValue(JSON.stringify({
-        allowedChainIds: [1],
-        allowedContracts: [],
-        allowedSelectors: [],
-        maxAmountWei: '0',
-        maxDeadlineSeconds: 0,
-        protocolPolicies: {
-          erc20: {
-            tokenAllowlist: ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
-            recipientAllowlist: ['0xDEAD000000000000000000000000000000000001'],
-            maxAllowanceWei: '500000000000000000000',
-          },
-        },
-      }));
+    it('should use VAULT_KEY_ID when --key-id not provided', () => {
+      process.env.VAULT_KEY_ID = 'env-key-id';
+      const argv = ['node', 'cli.js', '--region', 'us-east-1'];
 
-      const config = loadPolicyConfig('/fake/path.json');
-
-      expect(config.protocolPolicies).toBeDefined();
-      const erc20 = config.protocolPolicies!.erc20;
-      expect(erc20.tokenAllowlist).toEqual([
-        '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-      ]);
-      expect(erc20.recipientAllowlist).toEqual([
-        '0xdead000000000000000000000000000000000001',
-      ]);
-      expect(erc20.maxAllowanceWei).toBe(500000000000000000000n);
+      const result = parseArgs(argv);
+      expect(result.keyId).toBe('env-key-id');
     });
 
-    it('should lowercase tokenAllowlist and recipientAllowlist', () => {
-      mockReadFileSync.mockReturnValue(JSON.stringify({
-        allowedChainIds: [],
-        maxAmountWei: '0',
-        protocolPolicies: {
-          erc20: {
-            tokenAllowlist: ['0xABC', '0xDEF'],
-            recipientAllowlist: ['0x123ABC'],
-          },
-        },
-      }));
+    it('should use VAULT_REGION when --region not provided', () => {
+      process.env.VAULT_REGION = 'eu-west-1';
+      const argv = ['node', 'cli.js', '--key-id', 'k1'];
 
-      const config = loadPolicyConfig('/fake/path.json');
-      const erc20 = config.protocolPolicies!.erc20;
-
-      expect(erc20.tokenAllowlist).toEqual(['0xabc', '0xdef']);
-      expect(erc20.recipientAllowlist).toEqual(['0x123abc']);
+      const result = parseArgs(argv);
+      expect(result.region).toBe('eu-west-1');
     });
 
-    it('should handle maxAllowanceWei as BigInt', () => {
-      mockReadFileSync.mockReturnValue(JSON.stringify({
-        maxAmountWei: '0',
-        protocolPolicies: {
-          erc20: {
-            maxAllowanceWei: '115792089237316195423570985008687907853269984665640564039457584007913129639935',
-          },
-        },
-      }));
+    it('should prefer --key-id flag over VAULT_KEY_ID env var', () => {
+      process.env.VAULT_KEY_ID = 'env-key-id';
+      const argv = ['node', 'cli.js', '--key-id', 'flag-key-id', '--region', 'us-east-1'];
 
-      const config = loadPolicyConfig('/fake/path.json');
-      const erc20 = config.protocolPolicies!.erc20;
-
-      expect(typeof erc20.maxAllowanceWei).toBe('bigint');
-      expect(erc20.maxAllowanceWei).toBe(
-        115792089237316195423570985008687907853269984665640564039457584007913129639935n,
-      );
+      const result = parseArgs(argv);
+      expect(result.keyId).toBe('flag-key-id');
     });
 
-    it('should handle missing optional protocolPolicies fields', () => {
-      mockReadFileSync.mockReturnValue(JSON.stringify({
-        maxAmountWei: '0',
-        protocolPolicies: {
-          erc20: {
-            maxSlippageBps: 50,
-          },
-        },
-      }));
+    it('should prefer --region flag over VAULT_REGION env var', () => {
+      process.env.VAULT_REGION = 'env-region';
+      const argv = ['node', 'cli.js', '--key-id', 'k1', '--region', 'flag-region'];
 
-      const config = loadPolicyConfig('/fake/path.json');
-      const erc20 = config.protocolPolicies!.erc20;
+      const result = parseArgs(argv);
+      expect(result.region).toBe('flag-region');
+    });
 
-      expect(erc20.tokenAllowlist).toBeUndefined();
-      expect(erc20.recipientAllowlist).toBeUndefined();
-      expect(erc20.maxAllowanceWei).toBeUndefined();
-      expect(erc20.maxSlippageBps).toBe(50);
+    it('should throw when neither --key-id flag nor VAULT_KEY_ID env var present', () => {
+      delete process.env.VAULT_KEY_ID;
+      const argv = ['node', 'cli.js', '--region', 'us-east-1'];
+
+      expect(() => parseArgs(argv)).toThrow('--key-id or VAULT_KEY_ID environment variable is required');
+    });
+
+    it('should throw when neither --region flag nor VAULT_REGION env var present', () => {
+      delete process.env.VAULT_REGION;
+      const argv = ['node', 'cli.js', '--key-id', 'k1'];
+
+      expect(() => parseArgs(argv)).toThrow('--region or VAULT_REGION environment variable is required');
     });
   });
+
 });

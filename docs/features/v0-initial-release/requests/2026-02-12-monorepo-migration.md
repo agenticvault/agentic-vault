@@ -1,15 +1,15 @@
 # Monorepo Import Migration
 
 > **Created**: 2026-02-12
-> **Status**: Pending
+> **Status**: Deferred
 > **Priority**: P1
 > **Feature**: agentic-vault
 > **Feasibility Study**: [../../../project/0-feasibility-study.md](../../../project/0-feasibility-study.md)
-> **Depends on**: [2026-02-12-repo-extraction.md](./2026-02-12-repo-extraction.md)
+> **Depends on**: [2026-02-12-repo-extraction.md](./archive/2026-02-12-repo-extraction.md)
 
 ## Background
 
-在 dca-executor monorepo 中將所有 `@sd0xdev/vaultsign` 匯入更新為 `@sd0xdev/agentic-vault`。同日協調遷移。
+在 dca-executor monorepo 中將所有 `@agenticvault/agentic-vault` 匯入更新為 `@agenticvault/agentic-vault`。同日協調遷移。
 
 ## Requirements
 
@@ -41,7 +41,7 @@
 
 ## Acceptance Criteria
 
-- [ ] 所有 `@sd0xdev/vaultsign` import 改為 `@sd0xdev/agentic-vault`
+- [ ] 所有 `@agenticvault/agentic-vault` import 改為 `@agenticvault/agentic-vault`
 - [ ] `packages/dca-core/package.json` 已更新
 - [ ] `apps/dca-executor/package.json` 已更新
 - [ ] `pnpm typecheck` 通過
@@ -58,9 +58,11 @@
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | ✅ Done | Consumer list identified |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Development | Deferred | 等專案成熟後再考慮（2026-02-14 決議） |
+| Testing | Deferred | — |
+| Acceptance | Deferred | — |
+
+> **Deferred reason**: 此需求作用於外部 repo（dca-executor monorepo），非本 repo 可獨立完成。等專案成熟、npm publish 穩定後再處理。
 
 ## References
 

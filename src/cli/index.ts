@@ -24,8 +24,8 @@ Commands:
   mcp             Start MCP stdio server
 
 Global options:
-  --key-id <id>           AWS KMS key ID (required for sign/sign-permit/get-address/health/mcp)
-  --region <region>       AWS region (required for sign/sign-permit/get-address/health/mcp)
+  --key-id <id>           AWS KMS key ID (or set VAULT_KEY_ID env var)
+  --region <region>       AWS region (or set VAULT_REGION env var)
   --expected-address <a>  Expected wallet address (optional)
   --policy-config <path>  Policy config JSON file (optional)
   --output <format>       Output format: json (default), human, raw

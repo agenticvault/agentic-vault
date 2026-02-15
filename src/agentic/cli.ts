@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'node:fs';
 import {
   createSigningProvider,
   EvmSignerAdapter,
@@ -9,9 +8,10 @@ import {
 import {
   PolicyEngine,
   type PolicyConfigV2,
-  type ProtocolPolicyConfig,
   erc20Evaluator,
   uniswapV3Evaluator,
+  aaveV3Evaluator,
+  loadPolicyConfigFromFile,
 } from '../protocols/index.js';
 import { AuditLogger } from './audit/logger.js';
 import { startStdioServer } from './mcp/server.js';
@@ -53,39 +53,13 @@ export function parseArgs(argv: string[]): {
     }
   }
 
-  if (!keyId) throw new Error('--key-id is required');
-  if (!region) throw new Error('--region is required');
+  if (!keyId) keyId = process.env.VAULT_KEY_ID ?? '';
+  if (!region) region = process.env.VAULT_REGION ?? '';
+
+  if (!keyId) throw new Error('--key-id or VAULT_KEY_ID environment variable is required');
+  if (!region) throw new Error('--region or VAULT_REGION environment variable is required');
 
   return { keyId, region, expectedAddress, unsafeRawSign, policyConfig };
-}
-
-export function loadPolicyConfig(path: string): PolicyConfigV2 {
-  const raw = JSON.parse(readFileSync(path, 'utf-8'));
-
-  // Parse V2 protocolPolicies if present
-  let protocolPolicies: Record<string, ProtocolPolicyConfig> | undefined;
-  if (raw.protocolPolicies && typeof raw.protocolPolicies === 'object') {
-    protocolPolicies = {};
-    for (const [protocol, config] of Object.entries(raw.protocolPolicies)) {
-      const c = config as Record<string, unknown>;
-      protocolPolicies[protocol] = {
-        tokenAllowlist: (c.tokenAllowlist as string[] | undefined)?.map((t: string) => t.toLowerCase()) as `0x${string}`[] | undefined,
-        recipientAllowlist: (c.recipientAllowlist as string[] | undefined)?.map((r: string) => r.toLowerCase()) as `0x${string}`[] | undefined,
-        maxSlippageBps: c.maxSlippageBps as number | undefined,
-        maxInterestRateMode: c.maxInterestRateMode as number | undefined,
-        maxAllowanceWei: c.maxAllowanceWei != null ? BigInt(c.maxAllowanceWei as string) : undefined,
-      };
-    }
-  }
-
-  return {
-    allowedChainIds: raw.allowedChainIds ?? [],
-    allowedContracts: (raw.allowedContracts ?? []).map((c: string) => c.toLowerCase()),
-    allowedSelectors: (raw.allowedSelectors ?? []).map((s: string) => s.toLowerCase()),
-    maxAmountWei: BigInt(raw.maxAmountWei ?? '0'),
-    maxDeadlineSeconds: raw.maxDeadlineSeconds ?? 0,
-    protocolPolicies,
-  };
 }
 
 const DEFAULT_POLICY: PolicyConfigV2 = {
@@ -111,9 +85,9 @@ async function main(): Promise<void> {
 
   // Create policy engine
   const policyConfig = args.policyConfig
-    ? loadPolicyConfig(args.policyConfig)
+    ? loadPolicyConfigFromFile(args.policyConfig)
     : DEFAULT_POLICY;
-  const policyEngine = new PolicyEngine(policyConfig, [erc20Evaluator, uniswapV3Evaluator]);
+  const policyEngine = new PolicyEngine(policyConfig, [erc20Evaluator, uniswapV3Evaluator, aaveV3Evaluator]);
 
   // Create audit logger
   const auditLogger = new AuditLogger();

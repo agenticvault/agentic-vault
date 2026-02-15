@@ -1,7 +1,7 @@
 # Aave V3 Protocol Support
 
 > **Created**: 2026-02-13
-> **Status**: Pending
+> **Status**: Done
 > **Priority**: P2
 > **Feature**: defi-protocol-integration
 > **Tech Spec**: [../2-tech-spec.md](../2-tech-spec.md) (Phase 4)
@@ -41,31 +41,37 @@
 ## Acceptance Criteria
 
 ### Decoder
-- [ ] `supply` calldata 正確解碼為 `AaveV3SupplyIntent`
-- [ ] `borrow` calldata 正確解碼為 `AaveV3BorrowIntent`
-- [ ] `repay` calldata 正確解碼為 `AaveV3RepayIntent`
-- [ ] `withdraw` calldata 正確解碼為 `AaveV3WithdrawIntent`
-- [ ] 無效 calldata 回傳 `protocol: 'unknown'`
+- [x] `supply` calldata 正確解碼為 `AaveV3SupplyIntent`
+- [x] `borrow` calldata 正確解碼為 `AaveV3BorrowIntent`
+- [x] `repay` calldata 正確解碼為 `AaveV3RepayIntent`
+- [x] `withdraw` calldata 正確解碼為 `AaveV3WithdrawIntent`
+- [x] 無效 calldata 回傳 `protocol: 'unknown'`
 
 ### Policy Evaluator
-- [ ] 策略評估器驗證 reserve allowlist（`tokenAllowlist`）
-- [ ] 策略評估器驗證 `onBehalfOf` allowlist（supply/borrow/repay）
-- [ ] 策略評估器驗證 `maxInterestRateMode`（borrow/repay）
-- [ ] 策略評估器驗證 `maxAmountWei`（需擴充 `ProtocolPolicyConfig` schema）
-- [ ] `withdraw` 驗證 recipient 在 `recipientAllowlist` 中
+- [x] 策略評估器驗證 reserve allowlist（`tokenAllowlist`）
+- [x] 策略評估器驗證 `onBehalfOf` allowlist（supply/borrow/repay）
+- [x] 策略評估器驗證 `maxInterestRateMode`（borrow/repay）
+- [x] 策略評估器驗證 `maxAmountWei`（需擴充 `ProtocolPolicyConfig` schema）
+- [x] `withdraw` 驗證 recipient 在 `recipientAllowlist` 中
 
 ### Registry + Integration
-- [ ] Mainnet（chainId=1）Aave V3 Pool 地址已註冊（`0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2`）
-- [ ] `sign_defi_call` 可正確處理 Aave V3 calldata
+- [x] Mainnet（chainId=1）Aave V3 Pool 地址已註冊（`0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2`）
+- [x] Sepolia（chainId=11155111）Aave V3 Pool 地址已註冊（`0x6ae43d3271ff6888e7fc43fd7321a503ff738951`）
+- [x] `sign_defi_call` 可正確處理 Aave V3 calldata
+- [x] Protocol Action Catalog 新增 4 個 Aave V3 actions
 
 ### Unit Tests
-- [ ] `test/unit/protocols/decoders/aave-v3.test.ts` — 4 action 解碼 + invalid calldata
-- [ ] `test/unit/protocols/policy/evaluators/aave-v3.test.ts` — reserve/onBehalfOf/rate/amount 驗證
+- [x] `test/unit/protocols/decoders/aave-v3.test.ts` — 4 action 解碼 + invalid calldata
+- [x] `test/unit/protocols/policy/evaluators/aave-v3.test.ts` — reserve/onBehalfOf/rate/amount 驗證
+
+### Integration Tests
+- [x] `test/integration/sepolia-defi-flow.test.ts` — Wrap → Swap → Aave Supply 全流程 E2E（KMS signing）
+- [x] CI `testnet-defi-flow` job（`workflow_dispatch` 手動觸發）
 
 ### CI Gates
-- [ ] `pnpm typecheck` 通過
-- [ ] `pnpm test:unit` 全部通過
-- [ ] `pnpm build` 成功
+- [x] `pnpm typecheck` 通過
+- [x] `pnpm test:unit` 全部通過
+- [x] `pnpm build` 成功
 
 ## Dependencies
 
@@ -76,10 +82,10 @@
 
 | Phase | Status | Note |
 |-------|--------|------|
-| Analysis | Done | Tech spec completed |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Analysis | ✅ Done | Tech spec completed |
+| Development | ✅ Done | Decoder + evaluator + registry + catalog |
+| Testing | ✅ Done | Unit tests + Sepolia E2E flow |
+| Acceptance | ✅ Done | All AC checked |
 
 ## References
 

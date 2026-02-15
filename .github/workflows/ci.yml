@@ -4,6 +4,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:
@@ -20,6 +26,20 @@ jobs:
       - run: pnpm lint
       - run: pnpm test:unit
 
+  e2e-test:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:e2e
+
   integration-test:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -32,10 +52,57 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:integration
+      - run: pnpm exec vitest run test/integration --exclude 'test/integration/sepolia-*.test.ts'
         env:
           SIGNER_KEY_ID: ${{ secrets.SIGNER_KEY_ID }}
           SIGNER_REGION: ${{ secrets.SIGNER_REGION }}
           SIGNER_RESTRICTED_KEY_ID: ${{ secrets.SIGNER_RESTRICTED_KEY_ID }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  testnet-swap:
+    runs-on: ubuntu-latest
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+    needs: build-and-test
+    continue-on-error: true
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run test/integration/sepolia-swap.test.ts test/integration/sepolia-broadcast.test.ts
+        env:
+          SIGNER_KEY_ID: ${{ secrets.SIGNER_KEY_ID }}
+          SIGNER_REGION: ${{ secrets.SIGNER_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+
+  testnet-defi-flow:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build-and-test, testnet-swap]
+    continue-on-error: true
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run test/integration/sepolia-defi-flow.test.ts
+        env:
+          SIGNER_KEY_ID: ${{ secrets.SIGNER_KEY_ID }}
+          SIGNER_REGION: ${{ secrets.SIGNER_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}

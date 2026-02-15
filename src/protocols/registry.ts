@@ -2,6 +2,7 @@ import type { Address, Hex } from 'viem';
 import type { ProtocolDecoder } from './types.js';
 import { erc20Decoder } from './decoders/erc20.js';
 import { uniswapV3Decoder } from './decoders/uniswap-v3.js';
+import { aaveV3Decoder } from './decoders/aave-v3.js';
 
 export interface ContractEntry {
   protocol: string;
@@ -53,6 +54,16 @@ export function createDefaultRegistry(): RegistryConfig {
       '11155111:0x3bfa4769fb09eefc5a80d6e87c3b9c650f7ae48e': {
         protocol: 'uniswap_v3',
         decoder: uniswapV3Decoder,
+      },
+      // Aave V3 Pool (Ethereum mainnet)
+      '1:0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2': {
+        protocol: 'aave_v3',
+        decoder: aaveV3Decoder,
+      },
+      // Aave V3 Pool (Sepolia testnet)
+      '11155111:0x6ae43d3271ff6888e7fc43fd7321a503ff738951': {
+        protocol: 'aave_v3',
+        decoder: aaveV3Decoder,
       },
     },
     interfaceDecoders: [erc20Decoder],

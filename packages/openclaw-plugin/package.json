@@ -1,0 +1,53 @@
+{
+  "name": "@agenticvault/openclaw",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin for Agentic Vault — expose EVM signing as OpenClaw agent tools",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "openclaw.plugin.json"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agenticvault/agentic-vault",
+    "directory": "packages/openclaw-plugin"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/agenticvault/agentic-vault/issues"
+  },
+  "homepage": "https://github.com/agenticvault/agentic-vault/tree/main/packages/openclaw-plugin#readme",
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "agentic-vault",
+    "evm",
+    "signing",
+    "aws-kms",
+    "ai-agent"
+  ],
+  "peerDependencies": {
+    "@agenticvault/agentic-vault": "~0.1.0"
+  },
+  "devDependencies": {
+    "@agenticvault/agentic-vault": "workspace:*",
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0",
+    "vitest": "^4.0.18"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "lint": "eslint src/ test/",
+    "lint:fix": "eslint src/ test/ --fix",
+    "test:unit": "vitest run test/",
+    "prepack": "pnpm build"
+  }
+}

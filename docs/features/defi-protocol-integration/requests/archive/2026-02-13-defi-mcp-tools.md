@@ -1,7 +1,7 @@
 # DeFi MCP Tools + Uniswap V3 Decoder
 
 > **Created**: 2026-02-13
-> **Status**: Done (locally complete, pending commit)
+> **Status**: Done
 > **Priority**: P1
 > **Feature**: defi-protocol-integration
 > **Tech Spec**: [../2-tech-spec.md](../2-tech-spec.md) (Phase 3)

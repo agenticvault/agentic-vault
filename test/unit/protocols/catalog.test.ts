@@ -7,7 +7,11 @@ describe('Protocol Action Catalog', () => {
     expect(keys).toContain('erc20:approve');
     expect(keys).toContain('erc20:transfer');
     expect(keys).toContain('uniswap_v3:exactInputSingle');
-    expect(keys).toHaveLength(3);
+    expect(keys).toContain('aave_v3:supply');
+    expect(keys).toContain('aave_v3:borrow');
+    expect(keys).toContain('aave_v3:repay');
+    expect(keys).toContain('aave_v3:withdraw');
+    expect(keys).toHaveLength(7);
   });
 
   it('erc20:approve should have correct metadata', () => {
@@ -57,7 +61,7 @@ describe('Protocol Action Catalog', () => {
       // Verify paramNames length matches param count
       if (action.abi[0].inputs[0]?.type === 'tuple') {
         // Tuple: params are in components
-        const components = (action.abi[0].inputs[0] as { components: unknown[] }).components;
+        const components = (action.abi[0].inputs[0] as unknown as { components: unknown[] }).components;
         expect(action.paramNames).toHaveLength(components.length);
       } else {
         expect(action.paramNames).toHaveLength(action.abi[0].inputs.length);

@@ -34,18 +34,6 @@ export async function sendTransfer(ctx: WorkflowContext, input: SendTransferInpu
   const service = ctx.service ?? DEFAULT_SERVICE;
   const to = input.to.toLowerCase() as `0x${string}`;
 
-  if (!ctx.rpcProvider) {
-    ctx.auditSink.log({
-      service,
-      action: 'send_transfer',
-      who: ctx.caller,
-      what: 'RPC provider not available for transfer',
-      why: 'Configuration error: rpcProvider is required (pass --rpc-url)',
-      result: 'error',
-    });
-    return { status: 'error', reason: 'RPC provider is required for send_transfer (pass --rpc-url)' };
-  }
-
   // Parse and validate value
   let value: bigint;
   try {
@@ -112,6 +100,19 @@ export async function sendTransfer(ctx: WorkflowContext, input: SendTransferInpu
       status: 'dry-run-approved',
       details: { chainId: input.chainId, to, value: value.toString() },
     };
+  }
+
+  // RPC provider required for actual broadcast (after dry-run check)
+  if (!ctx.rpcProvider) {
+    ctx.auditSink.log({
+      service,
+      action: 'send_transfer',
+      who: ctx.caller,
+      what: 'RPC provider not available for transfer',
+      why: 'Configuration error: rpcProvider is required (pass --rpc-url)',
+      result: 'error',
+    });
+    return { status: 'error', reason: 'RPC provider is required for send_transfer (pass --rpc-url)' };
   }
 
   // Signer required for actual broadcast (after dry-run check)
@@ -181,18 +182,6 @@ export async function sendErc20Transfer(ctx: WorkflowContext, input: SendErc20Tr
   const service = ctx.service ?? DEFAULT_SERVICE;
   const token = input.token.toLowerCase() as `0x${string}`;
   const to = input.to.toLowerCase() as `0x${string}`;
-
-  if (!ctx.rpcProvider) {
-    ctx.auditSink.log({
-      service,
-      action: 'send_erc20_transfer',
-      who: ctx.caller,
-      what: 'RPC provider not available for ERC20 transfer',
-      why: 'Configuration error: rpcProvider is required (pass --rpc-url)',
-      result: 'error',
-    });
-    return { status: 'error', reason: 'RPC provider is required for send_erc20_transfer (pass --rpc-url)' };
-  }
 
   if (!ctx.dispatcher) {
     ctx.auditSink.log({
@@ -318,6 +307,19 @@ export async function sendErc20Transfer(ctx: WorkflowContext, input: SendErc20Tr
         amount: amount.toString(),
       },
     };
+  }
+
+  // RPC provider required for actual broadcast (after dry-run check)
+  if (!ctx.rpcProvider) {
+    ctx.auditSink.log({
+      service,
+      action: 'send_erc20_transfer',
+      who: ctx.caller,
+      what: 'RPC provider not available for ERC20 transfer',
+      why: 'Configuration error: rpcProvider is required (pass --rpc-url)',
+      result: 'error',
+    });
+    return { status: 'error', reason: 'RPC provider is required for send_erc20_transfer (pass --rpc-url)' };
   }
 
   // Signer required for actual broadcast (after dry-run check)

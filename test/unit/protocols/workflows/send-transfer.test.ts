@@ -160,6 +160,17 @@ describe('sendTransfer workflow', () => {
     expect(result.status).toBe('dry-run-approved');
   });
 
+  it('should return dry-run-approved without rpcProvider when dryRun is true', async () => {
+    ctx = createMockContext({ rpcProvider: undefined, signer: undefined, dryRun: true });
+    const result = await sendTransfer(ctx, {
+      chainId: 1,
+      to: '0x1234567890123456789012345678901234567890',
+      value: '1000',
+    });
+
+    expect(result.status).toBe('dry-run-approved');
+  });
+
   it('should return dry-run-approved without signing or broadcasting', async () => {
     ctx = createMockContext({ dryRun: true });
     const result = await sendTransfer(ctx, {
@@ -443,6 +454,18 @@ describe('sendErc20Transfer workflow', () => {
 
   it('should return dry-run-approved without signer when dryRun is true', async () => {
     ctx = createMockContext({ signer: undefined, dryRun: true });
+    const result = await sendErc20Transfer(ctx, {
+      chainId: 1,
+      token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      to: '0x1234567890123456789012345678901234567890',
+      amount: '1000000',
+    });
+
+    expect(result.status).toBe('dry-run-approved');
+  });
+
+  it('should return dry-run-approved without rpcProvider when dryRun is true', async () => {
+    ctx = createMockContext({ rpcProvider: undefined, signer: undefined, dryRun: true });
     const result = await sendErc20Transfer(ctx, {
       chainId: 1,
       token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',

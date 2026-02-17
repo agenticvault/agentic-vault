@@ -197,6 +197,39 @@ describe('sendTransfer workflow', () => {
     }
   });
 
+  it('should reject hex-prefixed value (0x10)', async () => {
+    const result = await sendTransfer(ctx, {
+      chainId: 1,
+      to: '0x1234567890123456789012345678901234567890',
+      value: '0x10',
+    });
+
+    expect(result.status).toBe('error');
+    if (result.status === 'error') {
+      expect(result.reason).toContain('decimal string');
+    }
+  });
+
+  it('should reject binary-prefixed value (0b10)', async () => {
+    const result = await sendTransfer(ctx, {
+      chainId: 1,
+      to: '0x1234567890123456789012345678901234567890',
+      value: '0b10',
+    });
+
+    expect(result.status).toBe('error');
+  });
+
+  it('should reject octal-prefixed value (0o10)', async () => {
+    const result = await sendTransfer(ctx, {
+      chainId: 1,
+      to: '0x1234567890123456789012345678901234567890',
+      value: '0o10',
+    });
+
+    expect(result.status).toBe('error');
+  });
+
   it('should return error when signing fails', async () => {
     ctx = createMockContext({
       signer: {
@@ -516,6 +549,20 @@ describe('sendErc20Transfer workflow', () => {
     expect(result.status).toBe('error');
     if (result.status === 'error') {
       expect(result.reason).toContain('Invalid amount');
+    }
+  });
+
+  it('should reject hex-prefixed amount (0x3e8)', async () => {
+    const result = await sendErc20Transfer(ctx, {
+      chainId: 1,
+      token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      to: '0x1234567890123456789012345678901234567890',
+      amount: '0x3e8',
+    });
+
+    expect(result.status).toBe('error');
+    if (result.status === 'error') {
+      expect(result.reason).toContain('decimal string');
     }
   });
 

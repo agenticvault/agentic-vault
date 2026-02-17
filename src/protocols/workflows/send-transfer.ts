@@ -1,5 +1,5 @@
 import { encodeFunctionData } from 'viem';
-import type { WorkflowContext, WorkflowResult } from './types.js';
+import { parseDecimalBigInt, type WorkflowContext, type WorkflowResult } from './types.js';
 import { erc20TransferAbi } from '../catalog.js';
 
 export interface SendTransferInput {
@@ -37,7 +37,7 @@ export async function sendTransfer(ctx: WorkflowContext, input: SendTransferInpu
   // Parse and validate value
   let value: bigint;
   try {
-    value = BigInt(input.value);
+    value = parseDecimalBigInt(input.value);
   } catch {
     ctx.auditSink.log({
       service,
@@ -198,7 +198,7 @@ export async function sendErc20Transfer(ctx: WorkflowContext, input: SendErc20Tr
   // Parse and validate amount
   let amount: bigint;
   try {
-    amount = BigInt(input.amount);
+    amount = parseDecimalBigInt(input.amount);
   } catch {
     ctx.auditSink.log({
       service,

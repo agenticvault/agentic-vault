@@ -88,3 +88,17 @@ export type WorkflowResult =
   | { status: 'dry-run-approved'; details: Record<string, unknown> }
   | { status: 'denied'; reason: string; violations?: string[] }
   | { status: 'error'; reason: string };
+
+const DECIMAL_ONLY = /^-?\d+$/;
+
+/**
+ * Parse a string as a decimal-only BigInt.
+ * Rejects hex (0x), binary (0b), octal (0o) prefixes that BigInt() silently accepts.
+ * Allows an optional leading minus sign so callers can provide specific negative-value errors.
+ */
+export function parseDecimalBigInt(value: string): bigint {
+  if (!DECIMAL_ONLY.test(value)) {
+    throw new Error('Value must be a decimal string (0-9 only)');
+  }
+  return BigInt(value);
+}

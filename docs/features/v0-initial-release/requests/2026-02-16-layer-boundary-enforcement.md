@@ -1,7 +1,7 @@
 # Layer Boundary Enforcement + Deferred Package Splitting
 
 > **Created**: 2026-02-16
-> **Status**: Pending
+> **Status**: Done
 > **Priority**: P1
 > **Feature**: v0-initial-release
 > **Depends on**: None (independent)
@@ -108,9 +108,9 @@ Layer 3: agentic/mcp/*   cli/*   [packages/openclaw-plugin]
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium（Claude + Codex 共識不拆包） |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Development | Done | 5 no-restricted-imports blocks in ESLint |
+| Testing | Done | pnpm lint passes |
+| Acceptance | Done | All AC verified |
 
 ## References
 

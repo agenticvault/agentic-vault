@@ -1,7 +1,7 @@
 # Code of Conduct
 
 > **Created**: 2026-02-17
-> **Status**: Pending
+> **Status**: Done
 > **Priority**: P1
 > **Feature**: v0-initial-release
 > **Depends on**: None
@@ -55,9 +55,9 @@ Codex 立場：阻擋項。Claude 立場：P2 建議。Nash 均衡：**非阻擋
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Development | Done | CODE_OF_CONDUCT.md created |
+| Testing | Done | CONTRIBUTING.md references it |
+| Acceptance | Done | All AC verified |
 
 ## References
 

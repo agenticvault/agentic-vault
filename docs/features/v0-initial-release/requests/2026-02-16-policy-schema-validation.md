@@ -1,7 +1,7 @@
 # Policy Config Schema Validation
 
 > **Created**: 2026-02-16
-> **Status**: Pending
+> **Status**: Done
 > **Priority**: P0
 > **Feature**: v0-initial-release
 > **Depends on**: None (independent)
@@ -91,9 +91,9 @@
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium（Claude + Codex 共識 blocker） |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Development | Done | Zod schema + safeParse in loader.ts |
+| Testing | Done | Unit tests pass |
+| Acceptance | Done | All AC verified |
 
 ## References
 

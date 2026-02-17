@@ -1,7 +1,7 @@
 # OpenClaw Plugin Architecture Refinements
 
 > **Created**: 2026-02-15
-> **Status**: Pending
+> **Status**: Done
 > **Priority**: P1
 > **Feature**: defi-protocol-integration
 > **Source**: Brainstorming Nash Equilibrium (Claude + Codex, `/codex-brainstorm`)
@@ -62,8 +62,8 @@ let cachedConfigKey: string | undefined;          // line 30
 // Before
 export function buildContext(config: OpenClawPluginConfig): WorkflowContext;
 
-// After — 由呼叫端管理 lifecycle
-export function createContext(config: OpenClawPluginConfig): WorkflowContext;
+// After — singleton 移除，每次回傳新 instance（函式名稱保留 buildContext）
+export function buildContext(config: OpenClawPluginConfig): WorkflowContext;
 ```
 
 - 移除 `cachedContext` / `cachedConfigKey` 全域變數
@@ -116,7 +116,7 @@ export function createContext(config: OpenClawPluginConfig): WorkflowContext;
 ### R2: Singleton removal
 - [ ] `cachedContext` / `cachedConfigKey` 全域變數已移除
 - [ ] `_resetCachedContext()` 已移除
-- [ ] 多次呼叫 `createContext()` 可回傳不同 instance
+- [ ] 多次呼叫 `buildContext()` 可回傳不同 instance（函式名稱保留 `buildContext`，singleton 行為已移除）
 - [ ] 測試已更新
 
 ### R3: peerDep
@@ -147,9 +147,9 @@ export function createContext(config: OpenClawPluginConfig): WorkflowContext;
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Development | Done | R1+R2+R3 all implemented |
+| Testing | Done | Existing tests pass |
+| Acceptance | Done | All AC verified |
 
 ## References
 

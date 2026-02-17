@@ -1,7 +1,7 @@
 # OpenClaw Plugin Integration Test
 
 > **Created**: 2026-02-17
-> **Status**: Pending
+> **Status**: Done
 > **Priority**: P2
 > **Feature**: v0-initial-release
 > **Depends on**: None
@@ -65,9 +65,9 @@ Codex 評估：插件品質 4/5，gap 為「only unit-level plugin tests; no hos
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Development | Done | plugin-load.test.ts + tool-pipeline.test.ts |
+| Testing | Done | Integration tests pass |
+| Acceptance | Done | All AC verified |
 
 ## References
 

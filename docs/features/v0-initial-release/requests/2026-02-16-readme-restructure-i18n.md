@@ -1,7 +1,7 @@
 # README Restructure + Multi-Language Support
 
 > **Created**: 2026-02-16
-> **Status**: Pending
+> **Status**: Done
 > **Priority**: P0
 > **Feature**: v0-initial-release
 > **Depends on**: [2026-02-15-open-source-readiness.md](./2026-02-15-open-source-readiness.md) (Done)
@@ -107,9 +107,9 @@ Brainstorming Nash Equilibrium 達成共識：瘦身至 ~180 行 + 抽離 4 個�
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Development | Done | README 161 lines, docs extracted, 5 languages |
+| Testing | Done | All links valid |
+| Acceptance | Done | All AC verified |
 
 ## References
 

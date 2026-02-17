@@ -1,7 +1,7 @@
 # CI Security & Quality Automation
 
 > **Created**: 2026-02-17
-> **Status**: Pending
+> **Status**: Done
 > **Priority**: P2
 > **Feature**: v0-initial-release
 > **Depends on**: None
@@ -76,9 +76,9 @@ Claude + Codex 共識：v0.1.0 人工態勢足以支撐初次發佈，v0.1.1 應
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Development | Done | CodeQL + dep-review + coverage configured |
+| Testing | Done | CI workflows functional |
+| Acceptance | Done | All AC verified |
 
 ## References
 

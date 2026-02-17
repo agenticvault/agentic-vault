@@ -1,7 +1,7 @@
 # Namespace Migration (Domain + npm Scope + GitHub Org)
 
 > **Created**: 2026-02-15
-> **Status**: In Development
+> **Status**: Near Complete (pending repo transfer + commit)
 > **Priority**: P0
 > **Feature**: v0-initial-release
 > **Depends on**: [2026-02-15-open-source-readiness.md](./2026-02-15-open-source-readiness.md) (Done)
@@ -84,15 +84,15 @@ Brainstorming Nash Equilibrium 達成共識：遷移至 `agenticvault` 統一命
 
 ### Phase 1: External Provisioning
 - [x] `agenticvault.dev` domain 已註冊
-- [ ] GitHub `agenticvault` org 已建立
+- [x] GitHub `agenticvault` org 已建立
 - [ ] Repo 已轉移至 `agenticvault/agentic-vault`
-- [ ] npm `agenticvault` org 已建立（Free plan）
-- [ ] `security@agenticvault.dev` email forwarding 已設定
+- [x] npm `agenticvault` org 已建立（Free plan）
+- [x] `security@agenticvault.dev` email forwarding 已設定
 
 ### Phase 2: Code Rename
 - [x] `package.json` name: `@agenticvault/agentic-vault`
 - [x] `packages/openclaw-plugin/package.json` name: `@agenticvault/openclaw`
-- [x] 所有 `@sd0xdev` import/reference 已更新（grep 驗證零殘留）
+- [x] 所有 `@sd0xdev` source imports 已更新（grep `src/` + `packages/` 驗證零殘留）
 - [x] 所有 `sd0xdev/agentic-vault-wallet` URL 已更新
 - [x] `SECURITY.md` email 已更新至 `security@agenticvault.dev`
 - [x] `.claude-plugin/plugin.json` publisher 已更新
@@ -101,7 +101,7 @@ Brainstorming Nash Equilibrium 達成共識：遷移至 `agenticvault` 統一命
 ### Phase 3: Verify
 - [x] `pnpm typecheck` 通過
 - [x] `pnpm lint` 通過
-- [x] `pnpm test:unit` 通過（467 + 34 tests）
+- [x] `pnpm test:unit` 通過（529 + 33 tests）
 - [x] `pnpm build` 成功
 - [ ] `pnpm pack --dry-run` 兩個套件內容正確
 
@@ -122,7 +122,7 @@ Brainstorming Nash Equilibrium 達成共識：遷移至 `agenticvault` 統一命
 | 部分遷移遺漏 | **Medium** | Atomic commit + `grep -r "sd0xdev"` 驗證 |
 | Coinbase 命名衝突 | **Low** | "Vault" ≠ "Wallet"，不同產品類別 |
 | Domain 不可用 | ~~Low~~ **Done** | `agenticvault.dev` 已註冊 ✅ |
-| npm scope 不可用 | **Low** | 搜尋未發現現有套件；需實際確認 |
+| npm scope 不可用 | ~~Low~~ **Done** | `@agenticvault` npm org 已建立 ✅ |
 
 ## Implementation Priority
 
@@ -138,8 +138,8 @@ Brainstorming Nash Equilibrium 達成共識：遷移至 `agenticvault` 統一命
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium |
 | Development | Done | Phase 2 code rename 完成，Codex review ✅ |
-| Testing | Done | 501 tests pass, typecheck/lint/build clean |
-| Acceptance | Partial | Phase 1 等 GitHub org + npm org；Phase 2/3 已完成 |
+| Testing | Done | 562 tests pass (529+33), typecheck/lint/build clean |
+| Acceptance | Partial | Phase 1 剩 repo transfer；Phase 2/3 code rename 已完成 |
 
 ## References
 

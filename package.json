@@ -72,6 +72,10 @@
     "url": "https://github.com/agenticvault/agentic-vault/issues"
   },
   "homepage": "https://github.com/agenticvault/agentic-vault#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -p tsconfig.check.json",

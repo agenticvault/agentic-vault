@@ -1,8 +1,12 @@
 name: Release
+
 on:
   push:
     tags: ['v*']
 
+# Trusted Publishing: OIDC token for npm authentication
+# Requires npm Trusted Publisher configured for @agenticvault/agentic-vault
+#   Organization: agenticvault | Repository: agentic-vault | Workflow: release.yml
 permissions:
   contents: read
   id-token: write
@@ -23,6 +27,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm test:unit
       - run: pnpm build
-      - run: pnpm publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Trusted Publishing: npm CLI 11.5.1+ required for OIDC (Node 22 ships npm 10.x)
+      - run: npm install -g npm@^11
+      - run: npm publish --provenance --access public

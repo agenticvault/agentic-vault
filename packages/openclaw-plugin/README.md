@@ -1,5 +1,7 @@
 # @agenticvault/openclaw
 
+English | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
+
 OpenClaw plugin for [Agentic Vault](https://github.com/agenticvault/agentic-vault) -- expose server-side EVM signing as OpenClaw agent tools with deny-by-default policy enforcement.
 
 ## Installation
@@ -54,7 +56,7 @@ Register the plugin in your OpenClaw agent configuration:
 
 ## Policy Configuration
 
-See the main repository's [policy configuration docs](https://github.com/agenticvault/agentic-vault#policy-config) and [`policy.example.json`](https://github.com/agenticvault/agentic-vault/blob/main/policy.example.json) for a complete example.
+See the main repository's [policy configuration docs](https://github.com/agenticvault/agentic-vault#configuration) and [`policy.example.json`](https://github.com/agenticvault/agentic-vault/blob/main/policy.example.json) for a complete example.
 
 ## License
 

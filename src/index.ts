@@ -30,3 +30,4 @@ export {
 // Import via: import { PolicyEngine } from '@agenticvault/agentic-vault/agentic'
 export type { PolicyConfig, PolicyRequest, PolicyEvaluation } from './protocols/policy/types.js';
 export type { AuditEntry } from './agentic/audit/types.js';
+export { AuditLogger } from './agentic/audit/logger.js';

@@ -1,9 +1,13 @@
 name: Release OpenClaw Plugin
+
 on:
   push:
     tags:
       - 'openclaw-v*'
 
+# Trusted Publishing: OIDC token for npm authentication
+# Requires npm Trusted Publisher configured for @agenticvault/openclaw
+#   Organization: agenticvault | Repository: agentic-vault | Workflow: release-openclaw.yml
 permissions:
   contents: read
   id-token: write
@@ -18,13 +22,18 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @agenticvault/agentic-vault build
       - run: pnpm --filter @agenticvault/openclaw build
       - run: pnpm --filter @agenticvault/openclaw typecheck
       - run: pnpm --filter @agenticvault/openclaw lint
       - run: pnpm --filter @agenticvault/openclaw test:unit
-      - run: pnpm --filter @agenticvault/openclaw publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Trusted Publishing: npm CLI 11.5.1+ required for OIDC (Node 22 ships npm 10.x)
+      # Use pnpm pack to resolve workspace:* protocol, then npm publish the tarball
+      - run: npm install -g npm@^11
+      - run: pnpm pack
+        working-directory: packages/openclaw-plugin
+      - run: npm publish *.tgz --provenance --access public
+        working-directory: packages/openclaw-plugin

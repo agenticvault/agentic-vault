@@ -9,17 +9,14 @@ vi.mock('@/index.js', () => {
     signTypedData = vi.fn();
     healthCheck = vi.fn();
   }
-  return {
-    createSigningProvider: vi.fn().mockReturnValue({}),
-    EvmSignerAdapter: MockEvmSignerAdapter,
-  };
-});
-
-vi.mock('@/agentic/index.js', () => {
   class MockAuditLogger {
     log = vi.fn();
   }
-  return { AuditLogger: MockAuditLogger };
+  return {
+    createSigningProvider: vi.fn().mockReturnValue({}),
+    EvmSignerAdapter: MockEvmSignerAdapter,
+    AuditLogger: MockAuditLogger,
+  };
 });
 
 vi.mock('node:fs', () => ({

@@ -1,6 +1,7 @@
 import {
   createSigningProvider,
   EvmSignerAdapter,
+  AuditLogger,
   type SignerAdapter,
 } from '../index.js';
 import {
@@ -14,7 +15,6 @@ import {
   loadPolicyConfigFromFile,
   type WorkflowContext,
 } from '../protocols/index.js';
-import { AuditLogger } from '../agentic/index.js';
 
 export interface CliGlobalArgs {
   keyId: string;

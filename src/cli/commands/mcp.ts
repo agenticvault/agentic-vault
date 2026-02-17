@@ -2,6 +2,7 @@ import { type CliGlobalArgs } from '../context.js';
 import {
   createSigningProvider,
   EvmSignerAdapter,
+  AuditLogger,
   type SignerAdapter,
 } from '../../index.js';
 import {
@@ -12,7 +13,7 @@ import {
   aaveV3Evaluator,
   loadPolicyConfigFromFile,
 } from '../../protocols/index.js';
-import { AuditLogger, startStdioServer } from '../../agentic/index.js';
+import { startStdioServer } from '../../agentic/index.js';
 
 /**
  * Runs the MCP stdio server.

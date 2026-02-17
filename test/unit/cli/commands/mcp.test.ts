@@ -13,9 +13,13 @@ vi.mock('@/index.js', () => {
     signTypedData = vi.fn();
     healthCheck = vi.fn();
   }
+  class MockAuditLogger {
+    log = vi.fn();
+  }
   return {
     createSigningProvider: vi.fn().mockReturnValue({}),
     EvmSignerAdapter: MockEvmSignerAdapter,
+    AuditLogger: MockAuditLogger,
   };
 });
 
@@ -38,15 +42,9 @@ vi.mock('@/protocols/index.js', () => {
   };
 });
 
-vi.mock('@/agentic/index.js', () => {
-  class MockAuditLogger {
-    log = vi.fn();
-  }
-  return {
-    AuditLogger: MockAuditLogger,
-    startStdioServer: mockStartStdioServer,
-  };
-});
+vi.mock('@/agentic/index.js', () => ({
+  startStdioServer: mockStartStdioServer,
+}));
 
 import { runMcp } from '@/cli/commands/mcp.js';
 import { loadPolicyConfigFromFile } from '@/protocols/index.js';

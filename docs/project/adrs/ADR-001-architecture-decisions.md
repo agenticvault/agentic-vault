@@ -207,6 +207,45 @@ Agentic Vault Wallet 由既有 `@sd0xdev/vaultsign` v0.2.0 提取為獨立專案
 
 ---
 
+## Decision 6: Layer Boundary Enforcement
+
+**狀態**: Accepted
+
+### 決策內容
+
+| 項目 | 決策 |
+|------|------|
+| 策略 | Hybrid（ESLint rules + unit trust-boundary tests） |
+| 層級 | core → providers → protocols → cli → agentic |
+| 跨層 import | 僅允許透過 barrel exports（`index.js`） |
+| 例外 | `src/cli/commands/mcp.ts` 可直接 import `src/agentic/index.js`（MCP bootstrap） |
+
+### 層級規則
+
+| Layer | 禁止 import |
+|-------|-------------|
+| `src/core/` | protocols, agentic, cli, providers |
+| `src/providers/` | protocols, agentic, cli |
+| `src/protocols/` | agentic, cli |
+| `src/cli/` (except mcp.ts) | agentic internals |
+| `src/agentic/` | 僅允許 barrel exports（既有 Decision 2） |
+
+### 實施方式
+
+| 機制 | 範圍 | 說明 |
+|------|------|------|
+| ESLint `no-restricted-imports` | 編譯時 | 每層獨立 config block，CI lint 攔截 |
+| Unit trust-boundary tests | 測試時 | 掃描 import 語句，驗證無 cross-layer violation |
+| `AuditLogger` re-export | `src/index.ts` | CLI 透過 root barrel 取得，避免直接引用 agentic |
+
+### Consequences
+
+- 正面：防止未來開發意外建立跨層依賴；為套件拆分預做準備
+- 負面：新增模組時需確認 ESLint config 涵蓋新路徑
+- 緩解：Trust-boundary tests 作為 safety net
+
+---
+
 ## 歧見紀錄
 
 記錄可行性研究中 Claude 與 Codex 的主要分歧及最終決議：

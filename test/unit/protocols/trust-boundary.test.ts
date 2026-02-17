@@ -100,7 +100,7 @@ describe('Protocols Trust Boundary', () => {
 
   it('src/protocols/ files only import from relative paths, viem, or node: builtins', () => {
     const violations: string[] = [];
-    const allowedPackages = ['viem'];
+    const allowedPackages = ['viem', 'zod'];
 
     for (const file of files) {
       const content = readFileSync(file, 'utf-8');

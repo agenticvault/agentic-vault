@@ -22,6 +22,10 @@
     "url": "https://github.com/agenticvault/agentic-vault/issues"
   },
   "homepage": "https://github.com/agenticvault/agentic-vault/tree/main/packages/openclaw-plugin#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "keywords": [
     "openclaw",
     "plugin",

@@ -137,6 +137,73 @@ describe('parsePolicyConfig', () => {
   });
 });
 
+describe('parsePolicyConfig schema validation', () => {
+  it('should reject allowedChainIds as non-array', () => {
+    expect(() =>
+      parsePolicyConfig({ allowedChainIds: 'not-array' } as unknown as Record<string, unknown>),
+    ).toThrow('Invalid policy configuration');
+  });
+
+  it('should reject allowedContracts with non-hex entries', () => {
+    expect(() =>
+      parsePolicyConfig({ allowedContracts: ['not-hex'] }),
+    ).toThrow('Must be a 0x-prefixed hex string');
+  });
+
+  it('should reject maxAmountWei with non-numeric string', () => {
+    expect(() =>
+      parsePolicyConfig({ maxAmountWei: 'abc' }),
+    ).toThrow('Must be a BigInt-compatible value');
+  });
+
+  it('should reject protocolPolicies as non-object', () => {
+    expect(() =>
+      parsePolicyConfig({ protocolPolicies: 'not-object' } as unknown as Record<string, unknown>),
+    ).toThrow('Invalid policy configuration');
+  });
+
+  it('should allow extra unknown fields (passthrough)', () => {
+    const config = parsePolicyConfig({
+      allowedChainIds: [1],
+      maxAmountWei: '0',
+      unknownField: 'some-value',
+    } as Record<string, unknown>);
+    expect(config.allowedChainIds).toEqual([1]);
+    expect((config as unknown as Record<string, unknown>).unknownField).toBe('some-value');
+  });
+
+  it('should parse partial protocolPolicies (erc20 only)', () => {
+    const config = parsePolicyConfig({
+      maxAmountWei: '0',
+      protocolPolicies: {
+        erc20: {
+          tokenAllowlist: ['0xABC'],
+          maxAllowanceWei: '100',
+        },
+      },
+    });
+    expect(config.protocolPolicies).toBeDefined();
+    expect(config.protocolPolicies!.erc20.tokenAllowlist).toEqual(['0xabc']);
+    expect(config.protocolPolicies!.erc20.maxAllowanceWei).toBe(100n);
+  });
+
+  it('should reject protocol tokenAllowlist with non-hex entries', () => {
+    expect(() =>
+      parsePolicyConfig({
+        maxAmountWei: '0',
+        protocolPolicies: {
+          erc20: { tokenAllowlist: ['bad-address'] },
+        },
+      }),
+    ).toThrow('Must be a 0x-prefixed hex string');
+  });
+
+  it('should accept maxAmountWei as number', () => {
+    const config = parsePolicyConfig({ maxAmountWei: 100 });
+    expect(config.maxAmountWei).toBe(100n);
+  });
+});
+
 describe('loadPolicyConfigFromFile', () => {
   it('should read file and parse', () => {
     mockReadFileSync.mockReturnValue(JSON.stringify({

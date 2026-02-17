@@ -9,7 +9,7 @@
 
 ## Background
 
-Phase 1-8 開發完成（467 + 34 unit tests pass, zero lint/typecheck/build errors, zero dependency vulnerabilities）。程式碼品質已達開源標準，但治理、打包、文件面向仍有缺口。
+Phase 1-8 開發完成（529 + 33 unit tests pass, zero lint/typecheck/build errors, zero dependency vulnerabilities）。程式碼品質已達開源標準，但治理、打包、文件面向仍有缺口。
 
 Brainstorming 識別 3 個阻擋項 + 6 個應修復項 + 3 個可選項。
 
@@ -21,7 +21,7 @@ Brainstorming 識別 3 個阻擋項 + 6 個應修復項 + 3 個可選項。
 |---|------|-------------|
 | B1 | `.claude-plugin` 打包不一致 | `.claude-plugin` 列在 `package.json` `files` 陣列但被 `.gitignore` 排除，CI publish 不會包含此目錄。需追蹤必要檔案或從 `files` 移除 |
 | B2 | `SECURITY.md` | KMS 簽署專案需要漏洞揭露政策（通報管道、SLA、嚴重程度分級、支援版本） |
-| B3 | 提交所有變更 | 49 個檔案的 Phase 2-8 工作尚未提交 |
+| B3 | 提交所有變更 | Phase 2-8 工作尚未提交（含程式碼、文件、設定檔） |
 
 ### Should Fix（v0.1.0 tag 前完成）
 
@@ -86,8 +86,8 @@ Brainstorming 識別 3 個阻擋項 + 6 個應修復項 + 3 個可選項。
 ### CI Gates
 - [x] `pnpm typecheck` 通過
 - [x] `pnpm lint` 通過
-- [x] `pnpm test:unit` 通過（467 tests）
-- [x] `pnpm --filter @agenticvault/openclaw test:unit` 通過（34 tests）
+- [x] `pnpm test:unit` 通過（529 tests，含 release script 59 tests）
+- [x] `pnpm --filter @agenticvault/openclaw test:unit` 通過（33 tests）
 - [x] `pnpm build` 成功
 
 ## Implementation Priority
@@ -109,7 +109,7 @@ Brainstorming 識別 3 個阻擋項 + 6 個應修復項 + 3 個可選項。
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium |
 | Development | Done | 所有 Blockers + Should Fix + 額外發現已實作 |
-| Testing | Done | CI gates 全數通過（typecheck / lint / 467+34 tests / build） |
+| Testing | Done | CI gates 全數通過（typecheck / lint / 529+33 tests / build） |
 | Acceptance | Pending commit | 最終審計 ✅ READY FOR RELEASE（Claude + Codex 共識）；B3 待 git commit 後勾選 |
 
 ## References

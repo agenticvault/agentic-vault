@@ -31,7 +31,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
@@ -41,10 +41,22 @@ jobs:
       - run: pnpm --filter @agenticvault/openclaw lint
       - run: pnpm --filter @agenticvault/openclaw test:unit
 
-      # Trusted Publishing: npm CLI 11.5.1+ required for OIDC (Node 22 ships npm 10.x)
+      # Idempotent publish: skip if version already exists on npm (e.g. after manual first-publish)
+      - name: Check if already published
+        id: check
+        run: |
+          PKG_VERSION=$(node -p "require('./packages/openclaw-plugin/package.json').version")
+          if npm view "@agenticvault/openclaw@${PKG_VERSION}" version > /dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::@agenticvault/openclaw@${PKG_VERSION} already exists on npm, skipping publish"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Use pnpm pack to resolve workspace:* protocol, then npm publish the tarball
-      - run: npm install -g npm@^11
       - run: pnpm pack
         working-directory: packages/openclaw-plugin
+        if: steps.check.outputs.already_published != 'true'
       - run: npm publish *.tgz --provenance --access public
         working-directory: packages/openclaw-plugin
+        if: steps.check.outputs.already_published != 'true'

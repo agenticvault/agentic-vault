@@ -30,7 +30,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
           cache: pnpm
       - run: pnpm install --frozen-lockfile
@@ -39,6 +39,17 @@ jobs:
       - run: pnpm test:unit
       - run: pnpm build
 
-      # Trusted Publishing: npm CLI 11.5.1+ required for OIDC (Node 22 ships npm 10.x)
-      - run: npm install -g npm@^11
+      # Idempotent publish: skip if version already exists on npm (e.g. after manual first-publish)
+      - name: Check if already published
+        id: check
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if npm view "@agenticvault/agentic-vault@${PKG_VERSION}" version > /dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::@agenticvault/agentic-vault@${PKG_VERSION} already exists on npm, skipping publish"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - run: npm publish --provenance --access public
+        if: steps.check.outputs.already_published != 'true'

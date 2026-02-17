@@ -6,7 +6,7 @@ Thank you for your interest in contributing. This guide covers development setup
 
 ### Prerequisites
 
-- Node.js >= 22
+- Node.js >= 24
 - pnpm >= 9
 - AWS credentials (for integration/e2e tests only)
 
@@ -14,7 +14,7 @@ Thank you for your interest in contributing. This guide covers development setup
 
 ```bash
 git clone https://github.com/agenticvault/agentic-vault.git
-cd agentic-vault-wallet
+cd agentic-vault
 pnpm install
 pnpm build
 pnpm test:unit

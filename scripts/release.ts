@@ -5,7 +5,7 @@
  * Usage:
  *   npx tsx scripts/release.ts preflight                   Check prerequisites
  *   npx tsx scripts/release.ts first-publish [--dry-run]   Manual first publish (one-time)
- *   npx tsx scripts/release.ts bump <version>              Bump version in all package.json
+ *   npx tsx scripts/release.ts bump <version>              Bump version in package.json + plugin manifests
  *   npx tsx scripts/release.ts tag [--dry-run]             Create git tags and push
  *
  * Typical flow:
@@ -14,7 +14,7 @@
  */
 
 import { execSync, type ExecSyncOptionsWithStringEncoding } from 'node:child_process';
-import { readFileSync, writeFileSync, readdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, unlinkSync, existsSync } from 'node:fs';
 import { resolve, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,6 +27,7 @@ const ROOT_DIR = resolve(__dirname, '..');
 const CORE_PKG = '@agenticvault/agentic-vault';
 const OPENCLAW_PKG = '@agenticvault/openclaw';
 const OPENCLAW_DIR = 'packages/openclaw-plugin';
+const PLUGIN_MANIFESTS = ['.claude-plugin/plugin.json', `${OPENCLAW_DIR}/openclaw.plugin.json`];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,6 +49,11 @@ interface PackageJson {
   [key: string]: unknown;
 }
 
+interface PluginManifest {
+  version: string;
+  [key: string]: unknown;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers (exported for testing)
 // ---------------------------------------------------------------------------
@@ -58,6 +64,14 @@ export function readPackageJson(filePath: string): PackageJson {
 
 export function writePackageJson(filePath: string, pkg: PackageJson): void {
   writeFileSync(filePath, JSON.stringify(pkg, null, 2) + '\n');
+}
+
+export function readPluginManifest(filePath: string): PluginManifest {
+  return JSON.parse(readFileSync(filePath, 'utf-8')) as PluginManifest;
+}
+
+export function writePluginManifest(filePath: string, manifest: PluginManifest): void {
+  writeFileSync(filePath, JSON.stringify(manifest, null, 2) + '\n');
 }
 
 export function isValidSemver(version: string): boolean {
@@ -305,12 +319,28 @@ export function bump(opts: RunOptions, newVersion: string): void {
   writePackageJson(ocPkgPath, ocPkg);
   stdout(`[ok]    OpenClaw: ${oldOcVer} → ${newVersion} (peerDep: ${peerRange})`);
 
-  // 3. Regenerate lockfile (lockfile-only prevents unrelated dependency drift)
+  // 3. Plugin manifests (version field only)
+  const updatedManifests: string[] = [];
+  for (const relPath of PLUGIN_MANIFESTS) {
+    const absPath = resolve(rootDir, relPath);
+    if (!existsSync(absPath)) {
+      stdout(`[skip]  ${relPath} not found`);
+      continue;
+    }
+    const manifest = readPluginManifest(absPath);
+    const oldVer = manifest.version;
+    manifest.version = newVersion;
+    writePluginManifest(absPath, manifest);
+    updatedManifests.push(relPath);
+    stdout(`[ok]    ${relPath}: ${oldVer} → ${newVersion}`);
+  }
+
+  // 4. Regenerate lockfile (lockfile-only prevents unrelated dependency drift)
   stdout('[info]  Regenerating pnpm-lock.yaml...');
   run('pnpm install --lockfile-only', { cwd: rootDir });
   stdout('[ok]    Lockfile updated');
 
-  // 4. Quick verify
+  // 5. Quick verify
   stdout('[info]  Quick verify: build + test...');
   run('pnpm build', { cwd: rootDir });
   run('pnpm test:unit', { cwd: rootDir });
@@ -321,7 +351,8 @@ export function bump(opts: RunOptions, newVersion: string): void {
   stdout('[info]  Changed files:');
   stdout(changed);
   stdout('[info]  Next steps:');
-  stdout(`  git add package.json ${OPENCLAW_DIR}/package.json pnpm-lock.yaml`);
+  const addFiles = [`package.json`, `${OPENCLAW_DIR}/package.json`, ...updatedManifests, `pnpm-lock.yaml`];
+  stdout(`  git add ${addFiles.join(' ')}`);
   stdout(`  git commit -m "chore: bump version to ${newVersion}"`);
   stdout(`  npx tsx scripts/release.ts tag`);
 }
@@ -418,7 +449,7 @@ Usage: npx tsx scripts/release.ts <command> [options]
 Commands:
   preflight              Check prerequisites (npm login, build, tests)
   first-publish          Manual first publish to npm (one-time, no provenance)
-  bump <version>         Bump version in all package.json files
+  bump <version>         Bump version in package.json files + plugin manifests
   tag                    Create git tags and push (triggers GHA workflows)
 
 Options:

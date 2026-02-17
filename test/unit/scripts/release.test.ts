@@ -5,6 +5,8 @@ import {
   assertShellSafe,
   readPackageJson,
   writePackageJson,
+  readPluginManifest,
+  writePluginManifest,
   isGitClean,
   getVersion,
   getOpenClawVersion,
@@ -31,15 +33,17 @@ vi.mock('node:fs', async () => {
     writeFileSync: vi.fn(),
     readdirSync: vi.fn().mockReturnValue([]),
     unlinkSync: vi.fn(),
+    existsSync: vi.fn().mockReturnValue(false),
   };
 });
 
-import { readFileSync, writeFileSync, readdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, unlinkSync, existsSync } from 'node:fs';
 
 const mockReadFileSync = vi.mocked(readFileSync);
 const mockWriteFileSync = vi.mocked(writeFileSync);
 const mockReaddirSync = vi.mocked(readdirSync);
 const mockUnlinkSync = vi.mocked(unlinkSync);
+const mockExistsSync = vi.mocked(existsSync);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -67,6 +71,10 @@ function makeOcPkgJson(version: string, peerDep?: string): string {
     version,
     peerDependencies: { '@agenticvault/agentic-vault': peerDep ?? `~${version}` },
   });
+}
+
+function makePluginManifest(version: string): string {
+  return JSON.stringify({ name: 'agentic-vault', version });
 }
 
 // ---------------------------------------------------------------------------
@@ -146,6 +154,29 @@ describe('writePackageJson', () => {
     expect(mockWriteFileSync).toHaveBeenCalledWith(
       '/fake/package.json',
       JSON.stringify(pkg, null, 2) + '\n',
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// readPluginManifest / writePluginManifest
+// ---------------------------------------------------------------------------
+
+describe('readPluginManifest', () => {
+  it('should parse plugin manifest from file', () => {
+    mockReadFileSync.mockReturnValue(makePluginManifest('0.1.0'));
+    const manifest = readPluginManifest('/fake/plugin.json');
+    expect(manifest.version).toBe('0.1.0');
+  });
+});
+
+describe('writePluginManifest', () => {
+  it('should write formatted JSON with trailing newline', () => {
+    const manifest = { name: 'agentic-vault', version: '2.0.0' };
+    writePluginManifest('/fake/plugin.json', manifest);
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
+      '/fake/plugin.json',
+      JSON.stringify(manifest, null, 2) + '\n',
     );
   });
 });
@@ -285,7 +316,7 @@ describe('preflight', () => {
     const opts = createMockOpts({
       exec: vi.fn().mockImplementation((cmd: string) => {
         calls.push(cmd);
-        if (cmd === 'node -v') return 'v22.0.0';
+        if (cmd === 'node -v') return 'v24.0.0';
         if (cmd === 'npm -v') return '11.0.0';
         if (cmd === 'pnpm -v') return '9.0.0';
         if (cmd === 'npm whoami') return 'testuser';
@@ -317,7 +348,7 @@ describe('preflight', () => {
   it('should throw when npm whoami fails', () => {
     const opts = createMockOpts({
       exec: vi.fn().mockImplementation((cmd: string) => {
-        if (cmd === 'node -v') return 'v22.0.0';
+        if (cmd === 'node -v') return 'v24.0.0';
         if (cmd === 'npm -v') return '11.0.0';
         if (cmd === 'pnpm -v') return '9.0.0';
         if (cmd === 'npm whoami') throw new Error('not logged in');
@@ -331,7 +362,7 @@ describe('preflight', () => {
   it('should warn when git is dirty', () => {
     const opts = createMockOpts({
       exec: vi.fn().mockImplementation((cmd: string) => {
-        if (cmd === 'node -v') return 'v22.0.0';
+        if (cmd === 'node -v') return 'v24.0.0';
         if (cmd === 'npm -v') return '11.0.0';
         if (cmd === 'pnpm -v') return '9.0.0';
         if (cmd === 'npm whoami') return 'testuser';
@@ -448,22 +479,29 @@ describe('bump', () => {
   beforeEach(() => {
     mockReadFileSync.mockReset();
     mockWriteFileSync.mockReset();
+    mockExistsSync.mockReset();
   });
 
-  it('should update versions in both package.json files', () => {
+  it('should update versions in package.json files and plugin manifests', () => {
     const rootPkg = { name: '@agenticvault/agentic-vault', version: '0.1.0' };
     const ocPkg = {
       name: '@agenticvault/openclaw',
       version: '0.1.0',
       peerDependencies: { '@agenticvault/agentic-vault': '~0.1.0' },
     };
+    const manifest = { name: 'agentic-vault', version: '0.1.0' };
 
-    // getVersion, getOpenClawVersion, then root read, then openclaw read
+    // getVersion, getOpenClawVersion, then root read, then openclaw read, then 2 manifests
     mockReadFileSync
       .mockReturnValueOnce(JSON.stringify(rootPkg))
       .mockReturnValueOnce(JSON.stringify(ocPkg))
       .mockReturnValueOnce(JSON.stringify(rootPkg))
-      .mockReturnValueOnce(JSON.stringify(ocPkg));
+      .mockReturnValueOnce(JSON.stringify(ocPkg))
+      .mockReturnValueOnce(JSON.stringify(manifest))
+      .mockReturnValueOnce(JSON.stringify(manifest));
+
+    // Both manifests exist
+    mockExistsSync.mockReturnValue(true);
 
     const calls: string[] = [];
     const opts = createMockOpts({
@@ -476,9 +514,9 @@ describe('bump', () => {
 
     bump(opts, '0.2.0');
 
-    // Verify writeFileSync was called with new versions
+    // Verify writeFileSync was called with new versions (2 pkg + 2 manifests)
     const writeCalls = mockWriteFileSync.mock.calls;
-    expect(writeCalls.length).toBe(2);
+    expect(writeCalls.length).toBe(4);
 
     // Root package.json
     const rootWritten = JSON.parse(writeCalls[0][1] as string);
@@ -489,12 +527,39 @@ describe('bump', () => {
     expect(ocWritten.version).toBe('0.2.0');
     expect(ocWritten.peerDependencies['@agenticvault/agentic-vault']).toBe('~0.2.0');
 
+    // Plugin manifests
+    const manifest1 = JSON.parse(writeCalls[2][1] as string);
+    expect(manifest1.version).toBe('0.2.0');
+    const manifest2 = JSON.parse(writeCalls[3][1] as string);
+    expect(manifest2.version).toBe('0.2.0');
+
     // Should run pnpm install --lockfile-only
     expect(calls).toContain('pnpm install --lockfile-only');
 
     // Should run build + test
     expect(calls).toContain('pnpm build');
     expect(calls).toContain('pnpm test:unit');
+  });
+
+  it('should skip missing plugin manifests', () => {
+    mockReadFileSync
+      .mockReturnValueOnce(makePkgJson('0.1.0'))
+      .mockReturnValueOnce(makeOcPkgJson('0.1.0'))
+      .mockReturnValueOnce(makePkgJson('0.1.0'))
+      .mockReturnValueOnce(makeOcPkgJson('0.1.0'));
+
+    // No manifests exist
+    mockExistsSync.mockReturnValue(false);
+
+    const opts = createMockOpts({
+      exec: vi.fn().mockReturnValue(''),
+    });
+
+    bump(opts, '0.2.0');
+
+    // Only 2 writes (no manifests)
+    expect(mockWriteFileSync.mock.calls.length).toBe(2);
+    expect(opts.output.some((line) => line.includes('[skip]'))).toBe(true);
   });
 
   it('should throw for invalid semver', () => {
@@ -513,6 +578,8 @@ describe('bump', () => {
       .mockReturnValueOnce(makeOcPkgJson('0.1.0'))
       .mockReturnValueOnce(makePkgJson('0.1.0'))
       .mockReturnValueOnce(makeOcPkgJson('0.1.0'));
+
+    mockExistsSync.mockReturnValue(false);
 
     const opts = createMockOpts({
       exec: vi.fn().mockReturnValue(''),

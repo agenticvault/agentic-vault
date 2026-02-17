@@ -17,7 +17,7 @@
     "openclaw.plugin.json"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "repository": {
     "type": "git",

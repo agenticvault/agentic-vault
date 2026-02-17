@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 .env.local
+.npmrc
 *.tsbuildinfo
 .DS_Store
 coverage/

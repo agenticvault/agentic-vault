@@ -24,6 +24,10 @@ export {
   type AwsKmsSigningProviderConfig,
 } from './provider/factory.js';
 
+// ─── RPC Provider ───
+export { ViemRpcProvider } from './rpc/index.js';
+export type { WorkflowRpcProvider } from './protocols/workflows/types.js';
+
 // ─── Agentic MCP exports (subpath: @agenticvault/agentic-vault/agentic) ───
 // Moved to separate subpath to avoid eagerly pulling Node-only MCP/stdio
 // dependencies when consumers only need signing APIs.

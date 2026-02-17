@@ -58,12 +58,23 @@ export interface WorkflowDispatcher {
   ): WorkflowDecodedIntent;
 }
 
+/** RPC provider interface for on-chain reads and broadcast */
+export interface WorkflowRpcProvider {
+  getBalance(chainId: number, address: `0x${string}`): Promise<bigint>;
+  getErc20Balance(chainId: number, token: `0x${string}`, owner: `0x${string}`): Promise<bigint>;
+  getTransactionCount(chainId: number, address: `0x${string}`): Promise<number>;
+  estimateGas(chainId: number, tx: { from: `0x${string}`; to: `0x${string}`; value?: bigint; data?: `0x${string}` }): Promise<bigint>;
+  getGasPrice(chainId: number): Promise<bigint>;
+  sendRawTransaction(chainId: number, signedTx: `0x${string}`): Promise<`0x${string}`>;
+}
+
 /** Full context for workflow execution */
 export interface WorkflowContext {
   signer?: WorkflowSigner;
   policyEngine: WorkflowPolicyEngine;
   auditSink: AuditSink;
   dispatcher?: WorkflowDispatcher;
+  rpcProvider?: WorkflowRpcProvider;
   caller: WorkflowCaller;
   service?: string;
   dryRun?: boolean;

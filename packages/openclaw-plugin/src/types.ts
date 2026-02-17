@@ -34,4 +34,5 @@ export interface OpenClawPluginConfig {
   expectedAddress?: string;
   policyConfigPath?: string;
   enableUnsafeRawSign?: boolean;
+  rpcUrl?: string;
 }

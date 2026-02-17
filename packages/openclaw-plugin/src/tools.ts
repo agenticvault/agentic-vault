@@ -3,6 +3,9 @@ import {
   signPermit,
   getAddressWorkflow,
   healthCheckWorkflow,
+  getBalanceWorkflow,
+  sendTransfer,
+  sendErc20Transfer,
   type WorkflowContext,
   type WorkflowResult,
 } from '@agenticvault/agentic-vault/protocols';
@@ -172,6 +175,121 @@ function registerSignPermit(
         domain: args.domain as Record<string, unknown>,
         types: args.types as Record<string, unknown>,
         message: args.message as Record<string, unknown>,
+      });
+      return toResult(result);
+    },
+  );
+}
+
+function registerGetBalance(
+  api: OpenClawPluginApi,
+  ctx: WorkflowContext,
+): void {
+  api.registerTool(
+    'vault_get_balance',
+    {
+      description: 'Query native ETH or ERC20 token balance for an address',
+      parameters: {
+        chainId: {
+          type: 'number',
+          description: 'The chain ID to query',
+          required: true,
+        },
+        address: {
+          type: 'string',
+          description: 'The address to query (defaults to vault address)',
+        },
+        token: {
+          type: 'string',
+          description: 'ERC20 token address (omit for native ETH balance)',
+        },
+      },
+    },
+    async (args) => {
+      const result = await getBalanceWorkflow(ctx, {
+        chainId: args.chainId as number,
+        address: args.address as string | undefined,
+        token: args.token as string | undefined,
+      });
+      return toResult(result);
+    },
+  );
+}
+
+function registerSendTransfer(
+  api: OpenClawPluginApi,
+  ctx: WorkflowContext,
+): void {
+  api.registerTool(
+    'vault_send_transfer',
+    {
+      description: 'Send native ETH transfer after policy validation, sign and broadcast',
+      parameters: {
+        chainId: {
+          type: 'number',
+          description: 'The chain ID for the transaction',
+          required: true,
+        },
+        to: {
+          type: 'string',
+          description: 'The recipient address (0x-prefixed)',
+          required: true,
+        },
+        value: {
+          type: 'string',
+          description: 'Amount in wei (decimal string)',
+          required: true,
+        },
+      },
+    },
+    async (args) => {
+      const result = await sendTransfer(ctx, {
+        chainId: args.chainId as number,
+        to: args.to as string,
+        value: args.value as string,
+      });
+      return toResult(result);
+    },
+  );
+}
+
+function registerSendErc20Transfer(
+  api: OpenClawPluginApi,
+  ctx: WorkflowContext,
+): void {
+  api.registerTool(
+    'vault_send_erc20_transfer',
+    {
+      description: 'Send ERC20 token transfer after policy validation, sign and broadcast',
+      parameters: {
+        chainId: {
+          type: 'number',
+          description: 'The chain ID for the transaction',
+          required: true,
+        },
+        token: {
+          type: 'string',
+          description: 'The ERC20 token contract address (0x-prefixed)',
+          required: true,
+        },
+        to: {
+          type: 'string',
+          description: 'The recipient address (0x-prefixed)',
+          required: true,
+        },
+        amount: {
+          type: 'string',
+          description: 'Amount in smallest unit (decimal string)',
+          required: true,
+        },
+      },
+    },
+    async (args) => {
+      const result = await sendErc20Transfer(ctx, {
+        chainId: args.chainId as number,
+        token: args.token as string,
+        to: args.to as string,
+        amount: args.amount as string,
       });
       return toResult(result);
     },
@@ -387,7 +505,7 @@ function registerSignTypedData(
 
 /**
  * Register all OpenClaw tools.
- * 4 safe tools are always registered.
+ * 7 safe tools are always registered.
  * 2 dual-gated tools are only registered when enableUnsafeRawSign is true.
  */
 export function registerTools(
@@ -400,6 +518,9 @@ export function registerTools(
   registerHealthCheck(api, ctx);
   registerSignDefiCall(api, ctx);
   registerSignPermit(api, ctx);
+  registerGetBalance(api, ctx);
+  registerSendTransfer(api, ctx);
+  registerSendErc20Transfer(api, ctx);
 
   // Dual-gated tools — only with enableUnsafeRawSign
   if (config.enableUnsafeRawSign) {

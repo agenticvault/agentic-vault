@@ -22,6 +22,7 @@ vi.mock('node:fs', () => ({
 vi.mock('@/index.js', () => ({
   createSigningProvider: vi.fn().mockReturnValue({}),
   EvmSignerAdapter: class MockEvmSignerAdapter {},
+  ViemRpcProvider: class MockViemRpcProvider {},
 }));
 
 // Mock protocols to prevent main() from instantiating real engines
@@ -80,6 +81,7 @@ describe('CLI utilities', () => {
         expectedAddress: '0xabc',
         unsafeRawSign: true,
         policyConfig: '/path/to/policy.json',
+        rpcUrl: undefined,
       });
     });
 
@@ -94,6 +96,7 @@ describe('CLI utilities', () => {
         expectedAddress: undefined,
         unsafeRawSign: false,
         policyConfig: undefined,
+        rpcUrl: undefined,
       });
     });
 
@@ -112,6 +115,18 @@ describe('CLI utilities', () => {
       const argv = ['node', 'cli.js', '--key-id', 'k1', '--region', 'r1'];
 
       expect(parseArgs(argv).unsafeRawSign).toBe(false);
+    });
+
+    it('should parse --rpc-url flag', () => {
+      const argv = [
+        'node', 'cli.js',
+        '--key-id', 'k1',
+        '--region', 'r1',
+        '--rpc-url', 'https://mainnet.infura.io/v3/abc',
+      ];
+
+      const result = parseArgs(argv);
+      expect(result.rpcUrl).toBe('https://mainnet.infura.io/v3/abc');
     });
 
     it('should ignore unknown arguments', () => {
@@ -184,6 +199,22 @@ describe('CLI utilities', () => {
       const argv = ['node', 'cli.js', '--key-id', 'k1'];
 
       expect(() => parseArgs(argv)).toThrow('--region or VAULT_REGION environment variable is required');
+    });
+
+    it('should use VAULT_RPC_URL when --rpc-url not provided', () => {
+      process.env.VAULT_RPC_URL = 'https://rpc.example.com';
+      const argv = ['node', 'cli.js', '--key-id', 'k1', '--region', 'us-east-1'];
+
+      const result = parseArgs(argv);
+      expect(result.rpcUrl).toBe('https://rpc.example.com');
+    });
+
+    it('should prefer --rpc-url flag over VAULT_RPC_URL env var', () => {
+      process.env.VAULT_RPC_URL = 'https://env-rpc.example.com';
+      const argv = ['node', 'cli.js', '--key-id', 'k1', '--region', 'us-east-1', '--rpc-url', 'https://flag-rpc.example.com'];
+
+      const result = parseArgs(argv);
+      expect(result.rpcUrl).toBe('https://flag-rpc.example.com');
     });
   });
 

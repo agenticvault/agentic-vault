@@ -1,6 +1,7 @@
 import {
   createSigningProvider,
   EvmSignerAdapter,
+  ViemRpcProvider,
 } from '@agenticvault/agentic-vault';
 import {
   PolicyEngine,
@@ -57,11 +58,16 @@ export function buildContext(config: OpenClawPluginConfig): WorkflowContext {
   const dispatcher = new ProtocolDispatcher(createDefaultRegistry());
   const auditSink = createAuditSink();
 
+  const rpcProvider = config.rpcUrl
+    ? new ViemRpcProvider({ rpcUrl: config.rpcUrl })
+    : undefined;
+
   return {
     signer,
     policyEngine,
     auditSink,
     dispatcher,
+    rpcProvider,
     caller: 'openclaw',
     service: 'agentic-vault-openclaw',
   };

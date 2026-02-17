@@ -50,7 +50,7 @@ Brainstorming Nash Equilibrium 達成共識：瘦身至 ~180 行 + 抽離 4 個�
 | Scope | Description |
 |-------|-------------|
 | In | README 重構、文件抽離、繁中翻譯、language selector |
-| Out | zh-CN/ja/ko 翻譯（社群驅動）、CI stale check（v0.2.0+）、完整 docs site |
+| Out | zh-CN/ja/ko 翻譯（社群驅動）、CI stale check（v0.1.1+）、完整 docs site |
 
 ## Related Files
 

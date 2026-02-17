@@ -5,7 +5,7 @@
 > **Priority**: P2
 > **Feature**: v0-initial-release
 > **Depends on**: None
-> **Target**: v0.2.0
+> **Target**: v0.1.1
 > **Source**: Brainstorming Nash Equilibrium (Claude + Codex, `/codex-brainstorm` thread: `019c698c-492d-7d81-bbae-31c9f751ec24`)
 
 ## Background

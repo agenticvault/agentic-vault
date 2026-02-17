@@ -48,14 +48,14 @@ v0.1.0 已完成 README 重構（361->159 行）與繁中翻譯（`README.zh-TW.
 | Scope | Description |
 |-------|-------------|
 | In | zh-CN/ja/ko 翻譯（主專案 + OpenClaw 插件）、language selector 更新、frontmatter |
-| Out | es 翻譯（P3 stretch，v0.2.0）、hi/ar/fr/pt-BR（community issue）、docs/ 翻譯、CI stale check |
+| Out | es 翻譯（P3 stretch，v0.1.1）、hi/ar/fr/pt-BR（community issue）、docs/ 翻譯、CI stale check |
 
 ## Language Tier Strategy
 
 | Tier | Languages | Owner | Timeline |
 |------|-----------|-------|----------|
 | Core (ship now) | en, zh-TW, zh-CN, ja, ko | Maintainer | This request |
-| Stretch | es | Maintainer | v0.2.0 or community PR |
+| Stretch | es | Maintainer | v0.1.1 or community PR |
 | Community | hi, ar, fr, pt-BR | Community contributor | Open issue |
 
 ## Related Files

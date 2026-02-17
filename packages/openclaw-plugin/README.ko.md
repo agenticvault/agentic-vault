@@ -1,4 +1,4 @@
-<!-- Source: packages/openclaw-plugin/README.md | Commit: 96a8dcc | Last synced: 2026-02-16 -->
+<!-- Source: packages/openclaw-plugin/README.md | Commit: 9d69f83 | Last synced: 2026-02-17 -->
 
 # @agenticvault/openclaw
 
@@ -24,12 +24,22 @@ OpenClaw 에이전트 설정에서 플러그인을 등록합니다:
       "config": {
         "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
         "region": "us-east-1",
-        "policyConfigPath": "./policy.json"
+        "policyConfigPath": "./policy.json",
+        "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
       }
     }
   }
 }
 ```
+
+| 옵션 | 필수 | 설명 |
+|------|------|------|
+| `keyId` | 예 | AWS KMS 키 ARN |
+| `region` | 예 | AWS 리전 |
+| `policyConfigPath` | 아니오 | 정책 JSON 파일 경로 (미지정 시 기본 전체 거부) |
+| `rpcUrl` | 아니오 | 잔액/전송 도구용 RPC 엔드포인트. `vault_get_balance`, `vault_send_transfer`, `vault_send_erc20_transfer` 사용 시 필요. |
+| `expectedAddress` | 아니오 | 검증용 예상 지갑 주소 |
+| `enableUnsafeRawSign` | 아니오 | 원시 서명 도구 활성화 (기본값: `false`) |
 
 ## 사용 가능한 도구
 
@@ -41,6 +51,9 @@ OpenClaw 에이전트 설정에서 플러그인을 등록합니다:
 | `vault_health_check` | Vault 서명기의 상태를 확인합니다 |
 | `vault_sign_defi_call` | calldata 디코딩 및 정책 검증 후 DeFi 컨트랙트 상호작용에 서명합니다 |
 | `vault_sign_permit` | 정책 검증 후 EIP-2612 permit에 서명합니다 |
+| `vault_get_balance` | 네이티브 또는 ERC20 토큰 잔액을 조회합니다 (`rpcUrl` 필요) |
+| `vault_send_transfer` | 정책 검증과 함께 네이티브 ETH를 전송합니다 (`rpcUrl` 필요) |
+| `vault_send_erc20_transfer` | 정책 검증과 함께 ERC20 토큰을 전송합니다 (`rpcUrl` 필요) |
 
 ### 이중 게이트 도구 (`enableUnsafeRawSign: true` 필요)
 

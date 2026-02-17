@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+#### Transfer & Balance Tools
+- `get_balance` MCP tool — query native ETH or ERC20 token balance
+- `send_transfer` MCP tool — send native ETH transfer (policy-validated, audit-logged)
+- `send_erc20_transfer` MCP tool — send ERC20 token transfer (policy-validated, audit-logged)
+- `ViemRpcProvider` (`src/rpc/`) — Viem-based RPC provider with lazy per-chain client caching
+- EIP-1559 fee estimation (`estimateFeesPerGas`) with robust fallback to `getGasPrice`
+- Chain-aware native currency symbol resolution (ETH, POL, etc.)
+- `--rpc-url` CLI flag for MCP server; public RPCs for supported chains (Ethereum, Sepolia, Arbitrum, Base, Polygon)
+- `WorkflowRpcProvider` interface for on-chain reads, gas estimation, and tx broadcast
+- Integration tests: full pipeline with real PolicyEngine + Dispatcher (15 tests)
+- E2E tests: MCP round-trip for balance/transfer tools (9 transfer/balance-focused cases)
+
+#### OpenClaw Plugin
+- 3 new safe tools: `vault_get_balance`, `vault_send_transfer`, `vault_send_erc20_transfer`
+- `rpcUrl` config option for RPC endpoint override
+
+### Changed
+- MCP tool surface expanded from 7 to 10 tools (3 new balance/transfer tools are always registered)
+- OpenClaw safe tools expanded from 4 to 7
+- Transfer workflows use `estimateFeesPerGas` instead of `getGasPrice * 2n` for EIP-1559 fee calculation
+
+### Migration Notes
+- **MCP users**: 3 new tools appear in `listTools`. Without an RPC provider, calling them returns a descriptive error. Existing tools are unaffected.
+- **OpenClaw users**: 3 new tools are registered by default. To use balance/transfer tools, add `rpcUrl` to your plugin config. Existing tools work without changes.
+- **Library users**: All existing exports are preserved. New exports (`ViemRpcProvider`, `WorkflowRpcProvider`, workflow functions) are additive only.
+
 ## [0.1.0] - 2026-02-13
 
 ### Added

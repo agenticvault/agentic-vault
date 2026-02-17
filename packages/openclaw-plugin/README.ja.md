@@ -1,4 +1,4 @@
-<!-- Source: packages/openclaw-plugin/README.md | Commit: 96a8dcc | Last synced: 2026-02-16 -->
+<!-- Source: packages/openclaw-plugin/README.md | Commit: 9d69f83 | Last synced: 2026-02-17 -->
 
 # @agenticvault/openclaw
 
@@ -24,12 +24,22 @@ OpenClaw エージェント設定にプラグインを登録します：
       "config": {
         "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
         "region": "us-east-1",
-        "policyConfigPath": "./policy.json"
+        "policyConfigPath": "./policy.json",
+        "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
       }
     }
   }
 }
 ```
+
+| オプション | 必須 | 説明 |
+|------------|------|------|
+| `keyId` | はい | AWS KMS キー ARN |
+| `region` | はい | AWS リージョン |
+| `policyConfigPath` | いいえ | ポリシー JSON ファイルパス（未指定時はすべて拒否） |
+| `rpcUrl` | いいえ | 残高/送金ツール用の RPC エンドポイント。`vault_get_balance`、`vault_send_transfer`、`vault_send_erc20_transfer` の使用時に必要。 |
+| `expectedAddress` | いいえ | 検証用の期待されるウォレットアドレス |
+| `enableUnsafeRawSign` | いいえ | 生署名ツールを有効化（デフォルト：`false`） |
 
 ## 利用可能なツール
 
@@ -41,6 +51,9 @@ OpenClaw エージェント設定にプラグインを登録します：
 | `vault_health_check` | Vault 署名器のヘルスステータスを確認します |
 | `vault_sign_defi_call` | calldata デコードとポリシー検証後に DeFi コントラクトインタラクションに署名します |
 | `vault_sign_permit` | ポリシー検証後に EIP-2612 permit に署名します |
+| `vault_get_balance` | ネイティブまたは ERC20 トークン残高を照会します（`rpcUrl` が必要） |
+| `vault_send_transfer` | ポリシー検証付きでネイティブ ETH を送金します（`rpcUrl` が必要） |
+| `vault_send_erc20_transfer` | ポリシー検証付きで ERC20 トークンを送金します（`rpcUrl` が必要） |
 
 ### デュアルゲートツール（`enableUnsafeRawSign: true` が必要）
 

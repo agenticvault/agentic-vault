@@ -34,10 +34,10 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test:unit
-      - run: pnpm build
 
       # Idempotent publish: skip if version already exists on npm (e.g. after manual first-publish)
       - name: Check if already published

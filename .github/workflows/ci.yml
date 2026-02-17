@@ -53,6 +53,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm exec vitest run test/integration --exclude 'test/integration/sepolia-*.test.ts'
         env:
           SIGNER_KEY_ID: ${{ secrets.SIGNER_KEY_ID }}

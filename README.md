@@ -154,6 +154,8 @@ See [Policy Reference](docs/reference/policy.md) for the full schema and example
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow, branch naming, and commit conventions.
 
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
 [MIT](LICENSE)

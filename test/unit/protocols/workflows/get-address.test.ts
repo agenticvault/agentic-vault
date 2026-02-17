@@ -30,6 +30,9 @@ describe('getAddress workflow', () => {
     const result = await getAddress(ctx);
     expect(result.status).toBe('error');
     expect(result).toHaveProperty('reason', 'Signer is required for get_address');
+    expect(ctx.auditSink.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'get_address', result: 'error', who: 'mcp-client' }),
+    );
   });
 
   it('should return error when signer throws', async () => {

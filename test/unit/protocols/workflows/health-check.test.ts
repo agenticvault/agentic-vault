@@ -31,6 +31,9 @@ describe('healthCheck workflow', () => {
     const result = await healthCheck(ctx);
     expect(result.status).toBe('error');
     expect(result).toHaveProperty('reason', 'Signer is required for health_check');
+    expect(ctx.auditSink.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'health_check', result: 'error', who: 'mcp-client' }),
+    );
   });
 
   it('should return error when health check fails', async () => {

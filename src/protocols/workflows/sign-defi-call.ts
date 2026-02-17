@@ -55,6 +55,15 @@ export async function signDefiCall(
     try {
       amountWei = BigInt(input.value);
     } catch {
+      ctx.auditSink.log({
+        service,
+        action: actionName,
+        who: ctx.caller,
+        what: `Invalid value parameter for ${to} on chain ${input.chainId}`,
+        why: 'Input validation: value must be a decimal string',
+        result: 'error',
+        details: { chainId: input.chainId, to },
+      });
       return {
         status: 'error',
         reason: 'Invalid value: must be a decimal string',
@@ -120,6 +129,14 @@ export async function signDefiCall(
 
   // 7. Sign
   if (!ctx.signer) {
+    ctx.auditSink.log({
+      service,
+      action: actionName,
+      who: ctx.caller,
+      what: 'Signer not available for signing',
+      why: 'Configuration error: signer is required when dryRun is not enabled',
+      result: 'error',
+    });
     return { status: 'error', reason: 'Signer is required when dryRun is not enabled' };
   }
 

@@ -6,6 +6,14 @@ export async function healthCheck(ctx: WorkflowContext): Promise<WorkflowResult>
   const service = ctx.service ?? DEFAULT_SERVICE;
 
   if (!ctx.signer) {
+    ctx.auditSink.log({
+      service,
+      action: 'health_check',
+      who: ctx.caller,
+      what: 'Signer not available for health check',
+      why: 'Configuration error: signer is required',
+      result: 'error',
+    });
     return { status: 'error', reason: 'Signer is required for health_check' };
   }
 

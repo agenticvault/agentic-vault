@@ -226,6 +226,14 @@ function registerSignTransaction(
     },
     async (args) => {
       if (!ctx.signer) {
+        ctx.auditSink.log({
+          service: ctx.service ?? 'agentic-vault-openclaw',
+          action: 'vault_sign_transaction',
+          who: ctx.caller,
+          what: 'Signer not available for raw transaction signing',
+          why: 'Configuration error: signer is required',
+          result: 'error',
+        });
         return {
           content: [{ type: 'text', text: 'Error: Signer is not available' }],
         };
@@ -319,6 +327,14 @@ function registerSignTypedData(
     },
     async (args) => {
       if (!ctx.signer) {
+        ctx.auditSink.log({
+          service: ctx.service ?? 'agentic-vault-openclaw',
+          action: 'vault_sign_typed_data',
+          who: ctx.caller,
+          what: 'Signer not available for typed data signing',
+          why: 'Configuration error: signer is required',
+          result: 'error',
+        });
         return {
           content: [{ type: 'text', text: 'Error: Signer is not available' }],
         };

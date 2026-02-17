@@ -5,6 +5,13 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./openclaw.plugin.json": "./openclaw.plugin.json"
+  },
   "files": [
     "dist",
     "openclaw.plugin.json"
@@ -51,7 +58,8 @@
     "typecheck": "tsc -p tsconfig.check.json",
     "lint": "eslint src/ test/",
     "lint:fix": "eslint src/ test/ --fix",
-    "test:unit": "vitest run test/",
+    "test:unit": "vitest run test/unit/",
+    "test:integration": "vitest run test/integration/",
     "prepack": "pnpm build"
   }
 }

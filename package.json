@@ -85,6 +85,7 @@
     "test:unit": "vitest run test/unit",
     "test:integration": "vitest run test/integration",
     "test:e2e": "vitest run test/e2e",
+    "test:coverage": "vitest run test/unit --coverage",
     "prepack": "pnpm build"
   },
   "dependencies": {
@@ -99,6 +100,7 @@
     "dotenv": "^17.2.4",
     "eslint": "^9.39.2",
     "typescript": "^5.9.3",
+    "@vitest/coverage-v8": "^4.0.18",
     "typescript-eslint": "^8.55.0",
     "vitest": "^4.0.18"
   }

@@ -60,4 +60,4 @@ See the main repository's [policy configuration docs](https://github.com/agentic
 
 ## License
 
-[MIT](../../LICENSE)
+[MIT](LICENSE)

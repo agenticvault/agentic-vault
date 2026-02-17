@@ -32,12 +32,39 @@ export async function signPermit(
 
   // 0. Guard against non-object domain/types/message (no Zod at workflow boundary)
   if (!input.domain || typeof input.domain !== 'object') {
+    ctx.auditSink.log({
+      service,
+      action: 'sign_permit',
+      who: ctx.caller,
+      what: 'Invalid domain parameter: must be a non-null object',
+      why: 'Input validation failed',
+      result: 'error',
+      details: { chainId: input.chainId, token },
+    });
     return { status: 'error', reason: 'domain must be a non-null object' };
   }
   if (!input.types || typeof input.types !== 'object') {
+    ctx.auditSink.log({
+      service,
+      action: 'sign_permit',
+      who: ctx.caller,
+      what: 'Invalid types parameter: must be a non-null object',
+      why: 'Input validation failed',
+      result: 'error',
+      details: { chainId: input.chainId, token },
+    });
     return { status: 'error', reason: 'types must be a non-null object' };
   }
   if (!input.message || typeof input.message !== 'object') {
+    ctx.auditSink.log({
+      service,
+      action: 'sign_permit',
+      who: ctx.caller,
+      what: 'Invalid message parameter: must be a non-null object',
+      why: 'Input validation failed',
+      result: 'error',
+      details: { chainId: input.chainId, token },
+    });
     return { status: 'error', reason: 'message must be a non-null object' };
   }
 
@@ -46,6 +73,15 @@ export async function signPermit(
   try {
     amountWei = BigInt(input.value);
   } catch {
+    ctx.auditSink.log({
+      service,
+      action: 'sign_permit',
+      who: ctx.caller,
+      what: `Invalid value parameter for token ${token} on chain ${input.chainId}`,
+      why: 'Input validation: value must be a decimal string',
+      result: 'error',
+      details: { chainId: input.chainId, token },
+    });
     return { status: 'error', reason: 'Invalid value: must be a decimal string' };
   }
 
@@ -273,6 +309,14 @@ export async function signPermit(
 
   // 8. Sign
   if (!ctx.signer) {
+    ctx.auditSink.log({
+      service,
+      action: 'sign_permit',
+      who: ctx.caller,
+      what: 'Signer not available for permit signing',
+      why: 'Configuration error: signer is required when dryRun is not enabled',
+      result: 'error',
+    });
     return { status: 'error', reason: 'Signer is required when dryRun is not enabled' };
   }
 

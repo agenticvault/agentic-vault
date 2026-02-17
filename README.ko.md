@@ -156,6 +156,8 @@ npx agentic-vault dry-run --chain-id 1 --to 0xa0b869... --data 0x095ea7b3...
 
 개발 워크플로, 브랜치 명명 규칙, 커밋 규약은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참조하세요.
 
+본 프로젝트는 [Contributor Covenant 행동 강령](CODE_OF_CONDUCT.md)을 따릅니다.
+
 ## 라이선스
 
 [MIT](LICENSE)

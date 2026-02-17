@@ -6,6 +6,14 @@ export async function getAddress(ctx: WorkflowContext): Promise<WorkflowResult> 
   const service = ctx.service ?? DEFAULT_SERVICE;
 
   if (!ctx.signer) {
+    ctx.auditSink.log({
+      service,
+      action: 'get_address',
+      who: ctx.caller,
+      what: 'Signer not available for address lookup',
+      why: 'Configuration error: signer is required',
+      result: 'error',
+    });
     return { status: 'error', reason: 'Signer is required for get_address' };
   }
 

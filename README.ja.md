@@ -156,6 +156,8 @@ npx agentic-vault dry-run --chain-id 1 --to 0xa0b869... --data 0x095ea7b3...
 
 開発ワークフロー、ブランチ命名規則、コミット規約については [CONTRIBUTING.md](CONTRIBUTING.md) をご覧ください。
 
+本プロジェクトは [Contributor Covenant 行動規範](CODE_OF_CONDUCT.md) に従います。
+
 ## ライセンス
 
 [MIT](LICENSE)

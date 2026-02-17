@@ -17,7 +17,7 @@ import { join, resolve } from 'node:path';
 //   - Any other external package not in peerDependencies
 // ============================================================================
 
-const SRC_DIR = resolve(import.meta.dirname, '../src');
+const SRC_DIR = resolve(import.meta.dirname, '../../src');
 
 const ALLOWED_IMPORT_PATTERNS = [
   /^['"]@agenticvault\/agentic-vault['"]/, // exact match: @agenticvault/agentic-vault

@@ -62,4 +62,4 @@ npm install @agenticvault/openclaw @agenticvault/agentic-vault
 
 ## 许可证
 
-[MIT](../../LICENSE)
+[MIT](LICENSE)

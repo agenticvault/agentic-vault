@@ -58,7 +58,7 @@ describe('buildContext', () => {
   });
 
   it('should return a WorkflowContext with caller=openclaw', async () => {
-    const { buildContext } = await import('../src/context.js');
+    const { buildContext } = await import('../../src/context.js');
     const ctx = buildContext({ keyId: 'test-key', region: 'us-east-1' });
 
     expect(ctx.caller).toBe('openclaw');
@@ -70,7 +70,7 @@ describe('buildContext', () => {
   });
 
   it('should create signer with correct config', async () => {
-    const { buildContext } = await import('../src/context.js');
+    const { buildContext } = await import('../../src/context.js');
     const { createSigningProvider } = await import('@agenticvault/agentic-vault');
 
     buildContext({ keyId: 'my-key', region: 'eu-west-1', expectedAddress: '0xabc' });
@@ -83,7 +83,7 @@ describe('buildContext', () => {
   });
 
   it('should return a new instance on every call (no singleton)', async () => {
-    const { buildContext } = await import('../src/context.js');
+    const { buildContext } = await import('../../src/context.js');
     const config = { keyId: 'test-key', region: 'us-east-1' };
 
     const ctx1 = buildContext(config);
@@ -93,7 +93,7 @@ describe('buildContext', () => {
   });
 
   it('should allow different configs across calls', async () => {
-    const { buildContext } = await import('../src/context.js');
+    const { buildContext } = await import('../../src/context.js');
 
     const ctx1 = buildContext({ keyId: 'key-1', region: 'us-east-1' });
     const ctx2 = buildContext({ keyId: 'key-2', region: 'eu-west-1' });
@@ -103,7 +103,7 @@ describe('buildContext', () => {
   });
 
   it('should throw when keyId is missing', async () => {
-    const { buildContext } = await import('../src/context.js');
+    const { buildContext } = await import('../../src/context.js');
 
     expect(() => buildContext({ keyId: '', region: 'us-east-1' })).toThrow(
       'OpenClaw plugin config: keyId is required',
@@ -111,7 +111,7 @@ describe('buildContext', () => {
   });
 
   it('should throw when region is missing', async () => {
-    const { buildContext } = await import('../src/context.js');
+    const { buildContext } = await import('../../src/context.js');
 
     expect(() => buildContext({ keyId: 'key', region: '' })).toThrow(
       'OpenClaw plugin config: region is required',
@@ -119,7 +119,7 @@ describe('buildContext', () => {
   });
 
   it('should use deny-all default policy when no policyConfigPath', async () => {
-    const { buildContext } = await import('../src/context.js');
+    const { buildContext } = await import('../../src/context.js');
     const { loadPolicyConfigFromFile } = await import('@agenticvault/agentic-vault/protocols');
     const ctx = buildContext({ keyId: 'key', region: 'us-east-1' });
 
@@ -130,7 +130,7 @@ describe('buildContext', () => {
   });
 
   it('should load policy from file when policyConfigPath is provided', async () => {
-    const { buildContext } = await import('../src/context.js');
+    const { buildContext } = await import('../../src/context.js');
     const { loadPolicyConfigFromFile } = await import('@agenticvault/agentic-vault/protocols');
 
     buildContext({ keyId: 'key', region: 'us-east-1', policyConfigPath: '/tmp/policy.json' });
@@ -139,7 +139,7 @@ describe('buildContext', () => {
   });
 
   it('should provide an audit sink that logs to stderr', async () => {
-    const { buildContext } = await import('../src/context.js');
+    const { buildContext } = await import('../../src/context.js');
     const ctx = buildContext({ keyId: 'key', region: 'us-east-1' });
 
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);

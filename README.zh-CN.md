@@ -156,6 +156,8 @@ npx agentic-vault dry-run --chain-id 1 --to 0xa0b869... --data 0x095ea7b3...
 
 请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解开发流程、分支命名与提交规范。
 
+本项目遵循 [Contributor Covenant 行为准则](CODE_OF_CONDUCT.md)。
+
 ## 许可证
 
 [MIT](LICENSE)

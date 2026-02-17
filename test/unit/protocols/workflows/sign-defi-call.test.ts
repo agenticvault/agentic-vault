@@ -84,6 +84,9 @@ describe('signDefiCall workflow', () => {
       const result = await signDefiCall(ctx, 'sign_defi_call', { ...VALID_INPUT, value: 'not-a-number' });
       expect(result.status).toBe('error');
       expect(result).toHaveProperty('reason', 'Invalid value: must be a decimal string');
+      expect(ctx.auditSink.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'sign_defi_call', result: 'error' }),
+      );
     });
 
     it('should pass valid value to policy as bigint', async () => {
@@ -139,6 +142,9 @@ describe('signDefiCall workflow', () => {
       const result = await signDefiCall(ctx, 'sign_defi_call', VALID_INPUT);
       expect(result.status).toBe('error');
       expect(result).toHaveProperty('reason', 'Signer is required when dryRun is not enabled');
+      expect(ctx.auditSink.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'sign_defi_call', result: 'error' }),
+      );
     });
   });
 

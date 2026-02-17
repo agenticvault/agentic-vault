@@ -62,4 +62,4 @@ OpenClaw 에이전트 설정에서 플러그인을 등록합니다:
 
 ## 라이선스
 
-[MIT](../../LICENSE)
+[MIT](LICENSE)

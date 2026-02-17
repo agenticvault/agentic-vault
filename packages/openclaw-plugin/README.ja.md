@@ -62,4 +62,4 @@ OpenClaw エージェント設定にプラグインを登録します：
 
 ## ライセンス
 
-[MIT](../../LICENSE)
+[MIT](LICENSE)

@@ -12,5 +12,15 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['src/**'],
+      exclude: ['src/**/*.d.ts'],
+      thresholds: {
+        lines: 80,
+        branches: 70,
+      },
+    },
   },
 });

@@ -114,6 +114,10 @@ All policy-guarded signing flows must go through the PolicyEngine. Unknown calld
 
 For security vulnerabilities, see [SECURITY.md](SECURITY.md). Do not open public issues for security bugs.
 
+## Code of Conduct
+
+This project follows the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md). By participating, you agree to uphold this code. Report sensitive conduct issues via [GitHub private reporting](https://github.com/agenticvault/agentic-vault/security/advisories/new); for non-sensitive matters, open an issue with the `conduct` label.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).

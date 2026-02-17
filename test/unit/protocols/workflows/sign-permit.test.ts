@@ -60,6 +60,9 @@ describe('signPermit workflow', () => {
       const result = await signPermit(ctx, validInput({ domain: null as unknown as Record<string, unknown> }));
       expect(result.status).toBe('error');
       expect(result).toHaveProperty('reason', 'domain must be a non-null object');
+      expect(ctx.auditSink.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'sign_permit', result: 'error' }),
+      );
     });
 
     it('should reject null message', async () => {
@@ -67,6 +70,9 @@ describe('signPermit workflow', () => {
       const result = await signPermit(ctx, validInput({ message: null as unknown as Record<string, unknown> }));
       expect(result.status).toBe('error');
       expect(result).toHaveProperty('reason', 'message must be a non-null object');
+      expect(ctx.auditSink.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'sign_permit', result: 'error' }),
+      );
     });
 
     it('should reject null types', async () => {
@@ -74,6 +80,9 @@ describe('signPermit workflow', () => {
       const result = await signPermit(ctx, validInput({ types: null as unknown as Record<string, unknown> }));
       expect(result.status).toBe('error');
       expect(result).toHaveProperty('reason', 'types must be a non-null object');
+      expect(ctx.auditSink.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'sign_permit', result: 'error' }),
+      );
     });
   });
 
@@ -83,6 +92,9 @@ describe('signPermit workflow', () => {
       const result = await signPermit(ctx, validInput({ value: 'abc' }));
       expect(result.status).toBe('error');
       expect(result).toHaveProperty('reason', 'Invalid value: must be a decimal string');
+      expect(ctx.auditSink.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'sign_permit', result: 'error' }),
+      );
     });
   });
 
@@ -223,6 +235,9 @@ describe('signPermit workflow', () => {
       const result = await signPermit(ctx, validInput());
       expect(result.status).toBe('error');
       expect(result).toHaveProperty('reason', 'Signer is required when dryRun is not enabled');
+      expect(ctx.auditSink.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'sign_permit', result: 'error' }),
+      );
     });
   });
 

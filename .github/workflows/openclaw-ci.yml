@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'packages/openclaw-plugin/**'
+      - 'src/**'
       - 'pnpm-workspace.yaml'
       - 'package.json'
       - 'tsconfig.json'
@@ -12,6 +13,7 @@ on:
     branches: [main]
     paths:
       - 'packages/openclaw-plugin/**'
+      - 'src/**'
       - 'pnpm-workspace.yaml'
       - 'package.json'
       - 'tsconfig.json'

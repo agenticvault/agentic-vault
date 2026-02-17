@@ -66,7 +66,7 @@ export async function getBalance(ctx: WorkflowContext, input: GetBalanceInput): 
       symbol = 'ERC20';
     } else {
       balance = await ctx.rpcProvider.getBalance(input.chainId, address);
-      symbol = 'ETH';
+      symbol = ctx.rpcProvider.getNativeCurrencySymbol(input.chainId);
     }
 
     ctx.auditSink.log({

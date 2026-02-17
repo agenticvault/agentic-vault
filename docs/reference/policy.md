@@ -1,6 +1,6 @@
 # Policy Configuration Reference
 
-The policy engine uses a JSON configuration file to define what signing operations are allowed. Without a policy file, all policy-guarded signing operations (DeFi calls, swaps, permits) are denied. Non-signing tools (`get_address`, `health_check`) and raw signing tools (when opt-in via `--unsafe-raw-sign`) are unaffected by the policy file.
+The policy engine uses a JSON configuration file to define what signing operations are allowed. Without a policy file, all policy-guarded operations (DeFi calls, swaps, permits, transfers) are denied. Non-signing tools (`get_address`, `health_check`, `get_balance`) and raw signing tools (when opt-in via `--unsafe-raw-sign`) are unaffected by the policy file.
 
 See [`policy.example.json`](../../policy.example.json) for a complete example.
 

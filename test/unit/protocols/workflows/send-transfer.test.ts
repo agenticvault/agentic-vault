@@ -9,6 +9,8 @@ function createMockRpcProvider(): WorkflowRpcProvider {
     getTransactionCount: vi.fn().mockResolvedValue(42),
     estimateGas: vi.fn().mockResolvedValue(21000n),
     getGasPrice: vi.fn().mockResolvedValue(20000000000n),
+    estimateFeesPerGas: vi.fn().mockResolvedValue({ maxFeePerGas: 30000000000n, maxPriorityFeePerGas: 1500000000n }),
+    getNativeCurrencySymbol: vi.fn().mockReturnValue('ETH'),
     sendRawTransaction: vi.fn().mockResolvedValue('0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'),
   };
 }
@@ -76,6 +78,24 @@ describe('sendTransfer workflow', () => {
       to: '0x1234567890123456789012345678901234567890',
       amountWei: 1000000000000000000n,
     });
+  });
+
+  it('should use estimateFeesPerGas for EIP-1559 fees (not getGasPrice)', async () => {
+    await sendTransfer(ctx, {
+      chainId: 1,
+      to: '0x1234567890123456789012345678901234567890',
+      value: '1000',
+    });
+
+    expect(ctx.rpcProvider!.estimateFeesPerGas).toHaveBeenCalledWith(1);
+    expect(ctx.rpcProvider!.getGasPrice).not.toHaveBeenCalled();
+    expect(ctx.signer!.signTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxFeePerGas: 30000000000n,
+        maxPriorityFeePerGas: 1500000000n,
+        type: 'eip1559',
+      }),
+    );
   });
 
   it('should return denied when policy rejects', async () => {
@@ -319,6 +339,25 @@ describe('sendErc20Transfer workflow', () => {
         selector: '0xa9059cbb',
         amountWei: 1000000n,
         intent: expect.objectContaining({ protocol: 'erc20', action: 'transfer' }),
+      }),
+    );
+  });
+
+  it('should use estimateFeesPerGas for ERC20 transfer fees', async () => {
+    await sendErc20Transfer(ctx, {
+      chainId: 1,
+      token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      to: '0x1234567890123456789012345678901234567890',
+      amount: '1000000',
+    });
+
+    expect(ctx.rpcProvider!.estimateFeesPerGas).toHaveBeenCalledWith(1);
+    expect(ctx.rpcProvider!.getGasPrice).not.toHaveBeenCalled();
+    expect(ctx.signer!.signTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxFeePerGas: 30000000000n,
+        maxPriorityFeePerGas: 1500000000n,
+        type: 'eip1559',
       }),
     );
   });

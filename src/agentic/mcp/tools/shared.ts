@@ -91,6 +91,8 @@ export interface ToolRpcProvider {
   getTransactionCount(chainId: number, address: `0x${string}`): Promise<number>;
   estimateGas(chainId: number, tx: { from: `0x${string}`; to: `0x${string}`; value?: bigint; data?: `0x${string}` }): Promise<bigint>;
   getGasPrice(chainId: number): Promise<bigint>;
+  estimateFeesPerGas(chainId: number): Promise<{ maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }>;
+  getNativeCurrencySymbol(chainId: number): string;
   sendRawTransaction(chainId: number, signedTx: `0x${string}`): Promise<`0x${string}`>;
 }
 

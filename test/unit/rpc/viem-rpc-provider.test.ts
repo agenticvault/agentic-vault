@@ -21,6 +21,7 @@ function createMockClient() {
     getTransactionCount: vi.fn().mockResolvedValue(42),
     estimateGas: vi.fn().mockResolvedValue(21000n),
     getGasPrice: vi.fn().mockResolvedValue(20000000000n),
+    estimateFeesPerGas: vi.fn().mockResolvedValue({ maxFeePerGas: 30000000000n, maxPriorityFeePerGas: 1500000000n }),
     sendRawTransaction: vi.fn().mockResolvedValue('0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'),
   };
 }
@@ -153,6 +154,100 @@ describe('ViemRpcProvider', () => {
       const price = await provider.getGasPrice(1);
 
       expect(price).toBe(20000000000n);
+    });
+  });
+
+  describe('estimateFeesPerGas', () => {
+    it('should return EIP-1559 fee estimates', async () => {
+      const provider = new ViemRpcProvider();
+      const fees = await provider.estimateFeesPerGas(1);
+
+      expect(fees.maxFeePerGas).toBe(30000000000n);
+      expect(fees.maxPriorityFeePerGas).toBe(1500000000n);
+      expect(mockClient.estimateFeesPerGas).toHaveBeenCalled();
+    });
+
+    it('should NOT call getGasPrice when both fee fields are present', async () => {
+      const provider = new ViemRpcProvider();
+      await provider.estimateFeesPerGas(1);
+
+      expect(mockClient.getGasPrice).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to getGasPrice when estimateFeesPerGas returns nulls', async () => {
+      mockClient.estimateFeesPerGas.mockResolvedValue({
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
+      });
+      const provider = new ViemRpcProvider();
+      const fees = await provider.estimateFeesPerGas(1);
+
+      // Fallback: gasPrice (20 gwei) * 2 for maxFeePerGas, 1.5 gwei for priority
+      expect(fees.maxFeePerGas).toBe(40000000000n);
+      expect(fees.maxPriorityFeePerGas).toBe(1500000000n);
+    });
+
+    it('should clamp maxPriorityFeePerGas to maxFeePerGas when priority exceeds max', async () => {
+      mockClient.estimateFeesPerGas.mockResolvedValue({
+        maxFeePerGas: 1000000000n, // 1 gwei
+        maxPriorityFeePerGas: undefined, // fallback 1.5 gwei > 1 gwei
+      });
+      const provider = new ViemRpcProvider();
+      const fees = await provider.estimateFeesPerGas(1);
+
+      expect(fees.maxPriorityFeePerGas).toBeLessThanOrEqual(fees.maxFeePerGas);
+      expect(fees.maxPriorityFeePerGas).toBe(1000000000n);
+    });
+
+    it('should handle only maxFeePerGas present (partial data)', async () => {
+      mockClient.estimateFeesPerGas.mockResolvedValue({
+        maxFeePerGas: 50000000000n,
+        maxPriorityFeePerGas: undefined,
+      });
+      const provider = new ViemRpcProvider();
+      const fees = await provider.estimateFeesPerGas(1);
+
+      expect(fees.maxFeePerGas).toBe(50000000000n);
+      expect(fees.maxPriorityFeePerGas).toBe(1500000000n);
+    });
+
+    it('should fall back to getGasPrice when estimateFeesPerGas throws', async () => {
+      mockClient.estimateFeesPerGas.mockRejectedValue(new Error('method not supported'));
+      const provider = new ViemRpcProvider();
+      const fees = await provider.estimateFeesPerGas(1);
+
+      // Fallback: gasPrice (20 gwei) * 2, priority capped at 1.5 gwei
+      expect(fees.maxFeePerGas).toBe(40000000000n);
+      expect(fees.maxPriorityFeePerGas).toBe(1500000000n);
+    });
+
+    it('should cap priority to gasPrice when gasPrice is very low (fallback path)', async () => {
+      mockClient.estimateFeesPerGas.mockRejectedValue(new Error('not supported'));
+      mockClient.getGasPrice.mockResolvedValue(500000000n); // 0.5 gwei < 1.5 gwei default
+      const provider = new ViemRpcProvider();
+      const fees = await provider.estimateFeesPerGas(1);
+
+      expect(fees.maxFeePerGas).toBe(1000000000n); // 0.5 gwei * 2
+      expect(fees.maxPriorityFeePerGas).toBe(500000000n); // capped to gasPrice
+    });
+  });
+
+  describe('getNativeCurrencySymbol', () => {
+    it('should return ETH for Ethereum mainnet', () => {
+      const provider = new ViemRpcProvider();
+      expect(provider.getNativeCurrencySymbol(1)).toBe('ETH');
+    });
+
+    it('should return POL for Polygon', () => {
+      const provider = new ViemRpcProvider();
+      const symbol = provider.getNativeCurrencySymbol(137);
+      // viem may return 'POL' or 'MATIC' depending on version
+      expect(['POL', 'MATIC']).toContain(symbol);
+    });
+
+    it('should return ETH for unknown chains', () => {
+      const provider = new ViemRpcProvider();
+      expect(provider.getNativeCurrencySymbol(99999)).toBe('ETH');
     });
   });
 

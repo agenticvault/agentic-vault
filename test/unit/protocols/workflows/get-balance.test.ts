@@ -9,6 +9,8 @@ function createMockRpcProvider(): WorkflowRpcProvider {
     getTransactionCount: vi.fn().mockResolvedValue(0),
     estimateGas: vi.fn().mockResolvedValue(21000n),
     getGasPrice: vi.fn().mockResolvedValue(20000000000n),
+    estimateFeesPerGas: vi.fn().mockResolvedValue({ maxFeePerGas: 30000000000n, maxPriorityFeePerGas: 1500000000n }),
+    getNativeCurrencySymbol: vi.fn().mockReturnValue('ETH'),
     sendRawTransaction: vi.fn().mockResolvedValue('0x'),
   };
 }
@@ -132,6 +134,32 @@ describe('getBalance workflow', () => {
         result: 'approved',
       }),
     );
+  });
+
+  it('should use getNativeCurrencySymbol for native balance symbol', async () => {
+    vi.mocked(ctx.rpcProvider!.getNativeCurrencySymbol).mockReturnValue('POL');
+    const result = await getBalance(ctx, { chainId: 137 });
+
+    expect(result.status).toBe('approved');
+    if (result.status === 'approved') {
+      const data = JSON.parse(result.data);
+      expect(data.symbol).toBe('POL');
+    }
+    expect(ctx.rpcProvider!.getNativeCurrencySymbol).toHaveBeenCalledWith(137);
+  });
+
+  it('should NOT call getNativeCurrencySymbol for ERC20 balance', async () => {
+    const result = await getBalance(ctx, {
+      chainId: 1,
+      token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    });
+
+    expect(result.status).toBe('approved');
+    if (result.status === 'approved') {
+      const data = JSON.parse(result.data);
+      expect(data.symbol).toBe('ERC20');
+    }
+    expect(ctx.rpcProvider!.getNativeCurrencySymbol).not.toHaveBeenCalled();
   });
 
   it('should return error when signer.getAddress() rejects', async () => {

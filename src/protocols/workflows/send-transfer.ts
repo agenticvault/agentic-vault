@@ -131,7 +131,7 @@ export async function sendTransfer(ctx: WorkflowContext, input: SendTransferInpu
     const from = await ctx.signer.getAddress();
     const nonce = await ctx.rpcProvider.getTransactionCount(input.chainId, from);
     const gas = await ctx.rpcProvider.estimateGas(input.chainId, { from, to, value });
-    const gasPrice = await ctx.rpcProvider.getGasPrice(input.chainId);
+    const fees = await ctx.rpcProvider.estimateFeesPerGas(input.chainId);
 
     const signedTx = await ctx.signer.signTransaction({
       chainId: input.chainId,
@@ -139,8 +139,8 @@ export async function sendTransfer(ctx: WorkflowContext, input: SendTransferInpu
       value,
       nonce,
       gas,
-      maxFeePerGas: gasPrice * 2n,
-      maxPriorityFeePerGas: gasPrice,
+      maxFeePerGas: fees.maxFeePerGas,
+      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
       type: 'eip1559',
     });
 
@@ -337,7 +337,7 @@ export async function sendErc20Transfer(ctx: WorkflowContext, input: SendErc20Tr
     const from = await ctx.signer.getAddress();
     const nonce = await ctx.rpcProvider.getTransactionCount(input.chainId, from);
     const gas = await ctx.rpcProvider.estimateGas(input.chainId, { from, to: token, data: calldata });
-    const gasPrice = await ctx.rpcProvider.getGasPrice(input.chainId);
+    const fees = await ctx.rpcProvider.estimateFeesPerGas(input.chainId);
 
     const signedTx = await ctx.signer.signTransaction({
       chainId: input.chainId,
@@ -345,8 +345,8 @@ export async function sendErc20Transfer(ctx: WorkflowContext, input: SendErc20Tr
       data: calldata,
       nonce,
       gas,
-      maxFeePerGas: gasPrice * 2n,
-      maxPriorityFeePerGas: gasPrice,
+      maxFeePerGas: fees.maxFeePerGas,
+      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
       type: 'eip1559',
     });
 

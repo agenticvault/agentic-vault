@@ -235,11 +235,11 @@ const EXPLORER: Record<number, string> = {
 
 Coverage target: > 80% lines + branches.
 
-## 7. Open Questions
+## 7. Decisions (Resolved)
 
-| # | Question | Options | Impact |
-|---|----------|---------|--------|
-| 1 | Should `get_balance` require `--rpc-url` or use public RPCs by default? | A) Require explicit URL, B) Default to public RPCs | UX vs reliability |
-| 2 | Should transfer tools wait for receipt or return immediately after broadcast? | A) Return txHash immediately, B) Poll for receipt | Latency vs confirmation |
-| 3 | Should we add a `send_batch_transfer` tool for multiple recipients? | A) Yes (batch), B) No (out of scope) | Scope |
-| 4 | ERC20 decimals: should `send_erc20_transfer` accept human-readable amounts (e.g. "1.5 USDC") or smallest unit only? | A) Smallest unit only, B) Auto-detect decimals via `decimals()` call | Complexity vs UX |
+| # | Question | Decision | Rationale |
+|---|----------|----------|-----------|
+| 1 | `get_balance` require `--rpc-url` or default to public RPCs? | B) Default to public RPCs via viem chain definitions; `--rpc-url` overrides (MCP server). OpenClaw requires explicit `rpcUrl` in plugin config. | Better UX for MCP; OpenClaw keeps explicit config for safety |
+| 2 | Transfer tools wait for receipt or return after broadcast? | A) Return txHash immediately after `sendRawTransaction` | Lower latency; agent can poll separately if needed |
+| 3 | Add `send_batch_transfer`? | B) Out of scope | Single transfers cover the primary use case |
+| 4 | ERC20 decimals: human-readable or smallest unit? | A) Smallest unit only | Simpler, no extra RPC call; agent handles formatting |

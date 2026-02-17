@@ -12,6 +12,8 @@ function createMockRpcProvider() {
     getTransactionCount: vi.fn().mockResolvedValue(0),
     estimateGas: vi.fn().mockResolvedValue(21000n),
     getGasPrice: vi.fn().mockResolvedValue(20000000000n),
+    estimateFeesPerGas: vi.fn().mockResolvedValue({ maxFeePerGas: 30000000000n, maxPriorityFeePerGas: 1500000000n }),
+    getNativeCurrencySymbol: vi.fn().mockReturnValue('ETH'),
     sendRawTransaction: vi.fn().mockResolvedValue('0x'),
   };
 }

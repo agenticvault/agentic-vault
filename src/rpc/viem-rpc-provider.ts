@@ -92,6 +92,37 @@ export class ViemRpcProvider implements WorkflowRpcProvider {
     return client.getGasPrice();
   }
 
+  async estimateFeesPerGas(chainId: number): Promise<{ maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }> {
+    const client = this.getClient(chainId);
+    try {
+      const fees = await client.estimateFeesPerGas();
+      let maxFee = fees.maxFeePerGas;
+      let maxPriority = fees.maxPriorityFeePerGas;
+
+      if (maxFee == null || maxPriority == null) {
+        const gasPrice = await client.getGasPrice();
+        maxFee = maxFee ?? gasPrice * 2n;
+        maxPriority = maxPriority ?? 1_500_000_000n;
+      }
+
+      return {
+        maxFeePerGas: maxFee,
+        maxPriorityFeePerGas: maxPriority > maxFee ? maxFee : maxPriority,
+      };
+    } catch {
+      const gasPrice = await client.getGasPrice();
+      return {
+        maxFeePerGas: gasPrice * 2n,
+        maxPriorityFeePerGas: gasPrice < 1_500_000_000n ? gasPrice : 1_500_000_000n,
+      };
+    }
+  }
+
+  getNativeCurrencySymbol(chainId: number): string {
+    const chain = CHAIN_MAP[chainId];
+    return chain?.nativeCurrency?.symbol ?? 'ETH';
+  }
+
   async sendRawTransaction(chainId: number, signedTx: `0x${string}`): Promise<`0x${string}`> {
     const client = this.getClient(chainId);
     return client.sendRawTransaction({ serializedTransaction: signedTx });

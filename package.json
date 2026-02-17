@@ -34,6 +34,7 @@
     "agentic-vault": "./dist/cli/index.js",
     "agentic-vault-mcp": "./dist/agentic/cli.js"
   },
+  "packageManager": "pnpm@10.29.1",
   "sideEffects": false,
   "engines": {
     "node": ">=24"

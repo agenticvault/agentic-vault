@@ -247,9 +247,49 @@ describe('ViemRpcProvider', () => {
       expect(['POL', 'MATIC']).toContain(symbol);
     });
 
-    it('should return ETH for unknown chains', () => {
+    it('should return BNB for BSC (chainId 56)', () => {
       const provider = new ViemRpcProvider();
-      expect(provider.getNativeCurrencySymbol(99999)).toBe('ETH');
+      expect(provider.getNativeCurrencySymbol(56)).toBe('BNB');
+    });
+
+    it('should return AVAX for Avalanche (chainId 43114)', () => {
+      const provider = new ViemRpcProvider();
+      expect(provider.getNativeCurrencySymbol(43114)).toBe('AVAX');
+    });
+
+    it('should return ETH for Optimism (chainId 10)', () => {
+      const provider = new ViemRpcProvider();
+      expect(provider.getNativeCurrencySymbol(10)).toBe('ETH');
+    });
+
+    it('should return XDAI for Gnosis (chainId 100)', () => {
+      const provider = new ViemRpcProvider();
+      expect(provider.getNativeCurrencySymbol(100)).toBe('XDAI');
+    });
+
+    it('should return FTM for Fantom (chainId 250)', () => {
+      const provider = new ViemRpcProvider();
+      expect(provider.getNativeCurrencySymbol(250)).toBe('FTM');
+    });
+
+    it('should return NATIVE for unknown chains without override', () => {
+      const provider = new ViemRpcProvider();
+      expect(provider.getNativeCurrencySymbol(99999)).toBe('NATIVE');
+    });
+
+    it('should use nativeCurrencyOverrides for custom chains', () => {
+      const provider = new ViemRpcProvider({
+        rpcUrl: 'http://localhost:8545',
+        nativeCurrencyOverrides: { 99999: 'CUSTOM' },
+      });
+      expect(provider.getNativeCurrencySymbol(99999)).toBe('CUSTOM');
+    });
+
+    it('should prefer override over CHAIN_MAP', () => {
+      const provider = new ViemRpcProvider({
+        nativeCurrencyOverrides: { 1: 'WETH' },
+      });
+      expect(provider.getNativeCurrencySymbol(1)).toBe('WETH');
     });
   });
 

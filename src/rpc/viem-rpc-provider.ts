@@ -6,7 +6,7 @@ import {
   encodeFunctionData,
   decodeFunctionResult,
 } from 'viem';
-import { mainnet, sepolia, arbitrum, base, polygon } from 'viem/chains';
+import { mainnet, sepolia, arbitrum, base, polygon, bsc, avalanche, optimism, gnosis, fantom } from 'viem/chains';
 import { erc20BalanceOfAbi } from '../protocols/catalog.js';
 import type { WorkflowRpcProvider } from '../protocols/workflows/types.js';
 
@@ -16,15 +16,25 @@ const CHAIN_MAP: Record<number, Chain> = {
   42161: arbitrum,
   8453: base,
   137: polygon,
+  56: bsc,
+  43114: avalanche,
+  10: optimism,
+  100: gnosis,
+  250: fantom,
 };
+
+/** Default symbol for chains not in CHAIN_MAP and without an override */
+const UNKNOWN_NATIVE_SYMBOL = 'NATIVE';
 
 export class ViemRpcProvider implements WorkflowRpcProvider {
   private clients = new Map<number, PublicClient>();
   private pending = new Map<number, Promise<PublicClient>>();
   private rpcUrl?: string;
+  private nativeCurrencyOverrides: Record<number, string>;
 
-  constructor(options?: { rpcUrl?: string }) {
+  constructor(options?: { rpcUrl?: string; nativeCurrencyOverrides?: Record<number, string> }) {
     this.rpcUrl = options?.rpcUrl;
+    this.nativeCurrencyOverrides = options?.nativeCurrencyOverrides ?? {};
   }
 
   private async getClient(chainId: number): Promise<PublicClient> {
@@ -54,8 +64,9 @@ export class ViemRpcProvider implements WorkflowRpcProvider {
     }
 
     const transport = this.rpcUrl ? http(this.rpcUrl) : http();
+    const symbol = this.getNativeCurrencySymbol(chainId);
     const client = createPublicClient({
-      chain: chain ?? { id: chainId, name: `Chain ${chainId}`, nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [] } } },
+      chain: chain ?? { id: chainId, name: `Chain ${chainId}`, nativeCurrency: { name: symbol, symbol, decimals: 18 }, rpcUrls: { default: { http: [] } } },
       transport,
     });
 
@@ -144,8 +155,10 @@ export class ViemRpcProvider implements WorkflowRpcProvider {
   }
 
   getNativeCurrencySymbol(chainId: number): string {
+    const override = this.nativeCurrencyOverrides[chainId];
+    if (override) return override;
     const chain = CHAIN_MAP[chainId];
-    return chain?.nativeCurrency?.symbol ?? 'ETH';
+    return chain?.nativeCurrency?.symbol ?? UNKNOWN_NATIVE_SYMBOL;
   }
 
   async sendRawTransaction(chainId: number, signedTx: `0x${string}`): Promise<`0x${string}`> {

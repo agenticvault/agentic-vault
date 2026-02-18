@@ -12,7 +12,7 @@ vi.mock('viem', async () => {
 import { createPublicClient } from 'viem';
 import { ViemRpcProvider } from '@/rpc/viem-rpc-provider.js';
 
-function createMockClient() {
+function createMockClient(chainId = 1) {
   return {
     getBalance: vi.fn().mockResolvedValue(1000000000000000000n),
     call: vi.fn().mockResolvedValue({
@@ -23,6 +23,7 @@ function createMockClient() {
     getGasPrice: vi.fn().mockResolvedValue(20000000000n),
     estimateFeesPerGas: vi.fn().mockResolvedValue({ maxFeePerGas: 30000000000n, maxPriorityFeePerGas: 1500000000n }),
     sendRawTransaction: vi.fn().mockResolvedValue('0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'),
+    getChainId: vi.fn().mockResolvedValue(chainId),
   };
 }
 
@@ -65,7 +66,8 @@ describe('ViemRpcProvider', () => {
     ).rejects.toThrow('Unsupported chainId 99999');
   });
 
-  it('should accept unknown chainId when rpcUrl is provided', async () => {
+  it('should accept unknown chainId when rpcUrl is provided and chainId matches', async () => {
+    mockClient.getChainId.mockResolvedValue(99999);
     const provider = new ViemRpcProvider({ rpcUrl: 'http://localhost:8545' });
     await provider.getBalance(99999, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
 
@@ -260,6 +262,66 @@ describe('ViemRpcProvider', () => {
       expect(mockClient.sendRawTransaction).toHaveBeenCalledWith({
         serializedTransaction: '0x02f8...',
       });
+    });
+  });
+
+  describe('chain ID validation', () => {
+    it('should validate chainId when rpcUrl is provided', async () => {
+      const provider = new ViemRpcProvider({ rpcUrl: 'http://localhost:8545' });
+      await provider.getBalance(1, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+
+      expect(mockClient.getChainId).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw on chain ID mismatch', async () => {
+      mockClient.getChainId.mockResolvedValue(11155111); // Sepolia
+      const provider = new ViemRpcProvider({ rpcUrl: 'http://localhost:8545' });
+
+      await expect(
+        provider.getBalance(1, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'),
+      ).rejects.toThrow('Chain ID mismatch: requested 1 but RPC endpoint returned 11155111');
+    });
+
+    it('should skip validation when no rpcUrl (default public RPC)', async () => {
+      const provider = new ViemRpcProvider();
+      await provider.getBalance(1, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+
+      expect(mockClient.getChainId).not.toHaveBeenCalled();
+    });
+
+    it('should not re-validate on subsequent calls (cached client)', async () => {
+      const provider = new ViemRpcProvider({ rpcUrl: 'http://localhost:8545' });
+      await provider.getBalance(1, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+      await provider.getBalance(1, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+
+      expect(mockClient.getChainId).toHaveBeenCalledTimes(1);
+    });
+
+    it('should deduplicate concurrent initialization for same chainId', async () => {
+      const provider = new ViemRpcProvider({ rpcUrl: 'http://localhost:8545' });
+      await Promise.all([
+        provider.getBalance(1, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'),
+        provider.getBalance(1, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'),
+      ]);
+
+      expect(createPublicClient).toHaveBeenCalledTimes(1);
+      expect(mockClient.getChainId).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not cache client after chain ID mismatch', async () => {
+      mockClient.getChainId.mockResolvedValue(11155111);
+      const provider = new ViemRpcProvider({ rpcUrl: 'http://localhost:8545' });
+
+      await expect(
+        provider.getBalance(1, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'),
+      ).rejects.toThrow('Chain ID mismatch');
+
+      // After failure, a retry should attempt initialization again (not return stale)
+      mockClient.getChainId.mockResolvedValue(1);
+      vi.mocked(createPublicClient).mockReturnValue(createMockClient() as never);
+      await provider.getBalance(1, '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+
+      expect(createPublicClient).toHaveBeenCalledTimes(2);
     });
   });
 });

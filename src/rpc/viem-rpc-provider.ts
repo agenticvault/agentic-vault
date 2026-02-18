@@ -20,16 +20,32 @@ const CHAIN_MAP: Record<number, Chain> = {
 
 export class ViemRpcProvider implements WorkflowRpcProvider {
   private clients = new Map<number, PublicClient>();
+  private pending = new Map<number, Promise<PublicClient>>();
   private rpcUrl?: string;
 
   constructor(options?: { rpcUrl?: string }) {
     this.rpcUrl = options?.rpcUrl;
   }
 
-  private getClient(chainId: number): PublicClient {
+  private async getClient(chainId: number): Promise<PublicClient> {
     const existing = this.clients.get(chainId);
     if (existing) return existing;
 
+    const inflight = this.pending.get(chainId);
+    if (inflight) return inflight;
+
+    const promise = this.initClient(chainId);
+    this.pending.set(chainId, promise);
+    try {
+      const client = await promise;
+      this.clients.set(chainId, client);
+      return client;
+    } finally {
+      this.pending.delete(chainId);
+    }
+  }
+
+  private async initClient(chainId: number): Promise<PublicClient> {
     const chain = CHAIN_MAP[chainId];
     if (!chain && !this.rpcUrl) {
       throw new Error(
@@ -43,17 +59,26 @@ export class ViemRpcProvider implements WorkflowRpcProvider {
       transport,
     });
 
-    this.clients.set(chainId, client);
+    // Validate that the RPC endpoint serves the expected chain
+    if (this.rpcUrl) {
+      const remoteChainId = await client.getChainId();
+      if (remoteChainId !== chainId) {
+        throw new Error(
+          `Chain ID mismatch: requested ${chainId} but RPC endpoint returned ${remoteChainId}`,
+        );
+      }
+    }
+
     return client;
   }
 
   async getBalance(chainId: number, address: `0x${string}`): Promise<bigint> {
-    const client = this.getClient(chainId);
+    const client = await this.getClient(chainId);
     return client.getBalance({ address });
   }
 
   async getErc20Balance(chainId: number, token: `0x${string}`, owner: `0x${string}`): Promise<bigint> {
-    const client = this.getClient(chainId);
+    const client = await this.getClient(chainId);
     const data = encodeFunctionData({
       abi: [erc20BalanceOfAbi],
       args: [owner],
@@ -73,12 +98,12 @@ export class ViemRpcProvider implements WorkflowRpcProvider {
   }
 
   async getTransactionCount(chainId: number, address: `0x${string}`): Promise<number> {
-    const client = this.getClient(chainId);
+    const client = await this.getClient(chainId);
     return client.getTransactionCount({ address, blockTag: 'pending' });
   }
 
   async estimateGas(chainId: number, tx: { from: `0x${string}`; to: `0x${string}`; value?: bigint; data?: `0x${string}` }): Promise<bigint> {
-    const client = this.getClient(chainId);
+    const client = await this.getClient(chainId);
     return client.estimateGas({
       account: tx.from,
       to: tx.to,
@@ -88,12 +113,12 @@ export class ViemRpcProvider implements WorkflowRpcProvider {
   }
 
   async getGasPrice(chainId: number): Promise<bigint> {
-    const client = this.getClient(chainId);
+    const client = await this.getClient(chainId);
     return client.getGasPrice();
   }
 
   async estimateFeesPerGas(chainId: number): Promise<{ maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }> {
-    const client = this.getClient(chainId);
+    const client = await this.getClient(chainId);
     try {
       const fees = await client.estimateFeesPerGas();
       let maxFee = fees.maxFeePerGas;
@@ -124,7 +149,7 @@ export class ViemRpcProvider implements WorkflowRpcProvider {
   }
 
   async sendRawTransaction(chainId: number, signedTx: `0x${string}`): Promise<`0x${string}`> {
-    const client = this.getClient(chainId);
+    const client = await this.getClient(chainId);
     return client.sendRawTransaction({ serializedTransaction: signedTx });
   }
 }

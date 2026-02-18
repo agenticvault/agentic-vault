@@ -8,6 +8,7 @@
     "region": { "type": "string", "required": true, "description": "AWS region" },
     "expectedAddress": { "type": "string", "required": false, "description": "Expected signer address for verification" },
     "policyConfigPath": { "type": "string", "required": false, "description": "Path to policy configuration JSON file" },
-    "enableUnsafeRawSign": { "type": "boolean", "required": false, "default": false, "description": "Enable raw transaction and typed data signing tools (unsafe)" }
+    "enableUnsafeRawSign": { "type": "boolean", "required": false, "default": false, "description": "Enable raw transaction and typed data signing tools (unsafe)" },
+    "rpcUrl": { "type": "string", "required": false, "description": "JSON-RPC endpoint URL for on-chain reads and broadcasts" }
   }
 }

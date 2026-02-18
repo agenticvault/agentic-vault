@@ -41,6 +41,9 @@ vi.mock('@agenticvault/agentic-vault/protocols', () => {
     signPermit: vi.fn().mockResolvedValue({ status: 'approved', data: '{"v":27,"r":"0xabc","s":"0xdef"}' }),
     getAddressWorkflow: vi.fn().mockResolvedValue({ status: 'approved', data: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' }),
     healthCheckWorkflow: vi.fn().mockResolvedValue({ status: 'approved', data: '{"status":"healthy"}' }),
+    getBalanceWorkflow: vi.fn().mockResolvedValue({ status: 'approved', data: '{"balance":"1000000000000000000","symbol":"ETH"}' }),
+    sendTransfer: vi.fn().mockResolvedValue({ status: 'approved', data: '{"txHash":"0xabc"}' }),
+    sendErc20Transfer: vi.fn().mockResolvedValue({ status: 'approved', data: '{"txHash":"0xdef"}' }),
   };
 });
 
@@ -65,26 +68,29 @@ describe('plugin-load integration', () => {
     vi.clearAllMocks();
   });
 
-  it('should register 4 safe tools via full entry point', async () => {
+  it('should register 7 safe tools via full entry point', async () => {
     const { register } = await import('../../src/index.js');
     const api = createMockApi();
 
     register(api, { keyId: 'test-key', region: 'us-east-1' });
 
-    expect(api.tools.size).toBe(4);
+    expect(api.tools.size).toBe(7);
     expect(api.tools.has('vault_get_address')).toBe(true);
     expect(api.tools.has('vault_health_check')).toBe(true);
     expect(api.tools.has('vault_sign_defi_call')).toBe(true);
     expect(api.tools.has('vault_sign_permit')).toBe(true);
+    expect(api.tools.has('vault_get_balance')).toBe(true);
+    expect(api.tools.has('vault_send_transfer')).toBe(true);
+    expect(api.tools.has('vault_send_erc20_transfer')).toBe(true);
   });
 
-  it('should register 6 tools when enableUnsafeRawSign is true', async () => {
+  it('should register 9 tools when enableUnsafeRawSign is true', async () => {
     const { register } = await import('../../src/index.js');
     const api = createMockApi();
 
     register(api, { keyId: 'test-key', region: 'us-east-1', enableUnsafeRawSign: true });
 
-    expect(api.tools.size).toBe(6);
+    expect(api.tools.size).toBe(9);
     expect(api.tools.has('vault_sign_transaction')).toBe(true);
     expect(api.tools.has('vault_sign_typed_data')).toBe(true);
   });

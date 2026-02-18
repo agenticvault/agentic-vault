@@ -58,12 +58,25 @@ export interface WorkflowDispatcher {
   ): WorkflowDecodedIntent;
 }
 
+/** RPC provider interface for on-chain reads and broadcast */
+export interface WorkflowRpcProvider {
+  getBalance(chainId: number, address: `0x${string}`): Promise<bigint>;
+  getErc20Balance(chainId: number, token: `0x${string}`, owner: `0x${string}`): Promise<bigint>;
+  getTransactionCount(chainId: number, address: `0x${string}`): Promise<number>;
+  estimateGas(chainId: number, tx: { from: `0x${string}`; to: `0x${string}`; value?: bigint; data?: `0x${string}` }): Promise<bigint>;
+  getGasPrice(chainId: number): Promise<bigint>;
+  estimateFeesPerGas(chainId: number): Promise<{ maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }>;
+  getNativeCurrencySymbol(chainId: number): string;
+  sendRawTransaction(chainId: number, signedTx: `0x${string}`): Promise<`0x${string}`>;
+}
+
 /** Full context for workflow execution */
 export interface WorkflowContext {
   signer?: WorkflowSigner;
   policyEngine: WorkflowPolicyEngine;
   auditSink: AuditSink;
   dispatcher?: WorkflowDispatcher;
+  rpcProvider?: WorkflowRpcProvider;
   caller: WorkflowCaller;
   service?: string;
   dryRun?: boolean;
@@ -75,3 +88,17 @@ export type WorkflowResult =
   | { status: 'dry-run-approved'; details: Record<string, unknown> }
   | { status: 'denied'; reason: string; violations?: string[] }
   | { status: 'error'; reason: string };
+
+const DECIMAL_ONLY = /^-?\d+$/;
+
+/**
+ * Parse a string as a decimal-only BigInt.
+ * Rejects hex (0x), binary (0b), octal (0o) prefixes that BigInt() silently accepts.
+ * Allows an optional leading minus sign so callers can provide specific negative-value errors.
+ */
+export function parseDecimalBigInt(value: string): bigint {
+  if (!DECIMAL_ONLY.test(value)) {
+    throw new Error('Value must be a decimal string (0-9 only)');
+  }
+  return BigInt(value);
+}

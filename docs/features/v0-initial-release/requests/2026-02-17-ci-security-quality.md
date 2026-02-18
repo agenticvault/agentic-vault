@@ -1,18 +1,18 @@
 # CI Security & Quality Automation
 
 > **Created**: 2026-02-17
-> **Status**: Pending
+> **Status**: Done
 > **Priority**: P2
 > **Feature**: v0-initial-release
 > **Depends on**: None
-> **Target**: v0.2.0
+> **Target**: v0.1.1
 > **Source**: Brainstorming Nash Equilibrium (Claude + Codex, `/codex-brainstorm` thread: `019c698c-492d-7d81-bbae-31c9f751ec24`)
 
 ## Background
 
 開源準備度評估中，CI/CD 與安全態勢各得 4/5。現有人工安全措施完善（SECURITY.md、ESLint 信任邊界、deny-by-default），但缺少自動化安全掃描與測試覆蓋率報告。
 
-Claude + Codex 共識：v0.1.0 人工態勢足以支撐初次發佈，v0.2.0 應補齊自動化。
+Claude + Codex 共識：v0.1.0 人工態勢足以支撐初次發佈，v0.1.1 應補齊自動化。
 
 ## Requirements
 
@@ -76,9 +76,9 @@ Claude + Codex 共識：v0.1.0 人工態勢足以支撐初次發佈，v0.2.0 應
 | Phase | Status | Note |
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium |
-| Development | Pending | |
-| Testing | Pending | |
-| Acceptance | Pending | |
+| Development | Done | CodeQL + dep-review + coverage configured |
+| Testing | Done | CI workflows functional |
+| Acceptance | Done | All AC verified |
 
 ## References
 

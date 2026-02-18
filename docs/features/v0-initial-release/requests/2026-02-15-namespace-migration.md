@@ -1,7 +1,7 @@
 # Namespace Migration (Domain + npm Scope + GitHub Org)
 
 > **Created**: 2026-02-15
-> **Status**: Near Complete (pending repo transfer + commit)
+> **Status**: Done
 > **Priority**: P0
 > **Feature**: v0-initial-release
 > **Depends on**: [2026-02-15-open-source-readiness.md](./2026-02-15-open-source-readiness.md) (Done)
@@ -139,7 +139,7 @@ Brainstorming Nash Equilibrium 達成共識：遷移至 `agenticvault` 統一命
 | Analysis | Done | Brainstorming Nash Equilibrium |
 | Development | Done | Phase 2 code rename 完成，Codex review ✅ |
 | Testing | Done | 562 tests pass (529+33), typecheck/lint/build clean |
-| Acceptance | Partial | Phase 1 剩 repo transfer；Phase 2/3 code rename 已完成 |
+| Acceptance | Done | Repo transferred to agenticvault/agentic-vault |
 
 ## References
 

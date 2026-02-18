@@ -15,6 +15,7 @@ import {
   EvmSignerAdapter,
   type SignerAdapter,
 } from '@/index.js';
+import { signAndBroadcast } from '../helpers/sepolia-broadcast.js';
 
 /**
  * Sepolia testnet full DeFi flow integration tests (KMS signing).
@@ -51,11 +52,11 @@ const SIGNER_REGION = process.env.SIGNER_REGION ?? 'ap-northeast-1';
 const SEPOLIA_RPC_URL =
   process.env.SEPOLIA_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com';
 
-/** Minimum balance: 0.01 ETH for wrap (0.002) + 5 gas txs */
-const MIN_BALANCE_WEI = parseEther('0.01');
-const WRAP_AMOUNT = parseEther('0.002');
-const SWAP_AMOUNT = parseEther('0.001');
-const SUPPLY_AMOUNT = parseEther('0.001');
+/** Minimum balance: 0.0002 ETH for wrap (0.00002) + 5 gas txs + headroom */
+const MIN_BALANCE_WEI = parseEther('0.0002');
+const WRAP_AMOUNT = parseEther('0.00002');
+const SWAP_AMOUNT = parseEther('0.00001');
+const SUPPLY_AMOUNT = parseEther('0.00001');
 
 const describeWithTestnet = SIGNER_KEY_ID ? describe.sequential : describe.skip;
 
@@ -171,58 +172,6 @@ const aaveV3SupplyAbi = [
 // ============================================================================
 
 const ETHERSCAN_BASE = 'https://sepolia.etherscan.io/tx/';
-
-async function signAndBroadcast(
-  publicClient: PublicClient,
-  signer: SignerAdapter,
-  address: Address,
-  tx: { to: Address; data: `0x${string}`; value?: bigint },
-): Promise<{ txHash: `0x${string}`; blockNumber: bigint }> {
-  const nonce = await publicClient.getTransactionCount({
-    address,
-    blockTag: 'pending',
-  });
-
-  const fees = await publicClient.estimateFeesPerGas();
-  const gas = await publicClient.estimateGas({
-    account: address,
-    ...tx,
-  });
-
-  const signedTx = await signer.signTransaction({
-    chainId: sepolia.id,
-    type: 'eip1559',
-    nonce,
-    gas: gas + gas / 5n,
-    maxFeePerGas: fees.maxFeePerGas,
-    maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
-    ...tx,
-  });
-
-  let txHash: `0x${string}`;
-  try {
-    txHash = await publicClient.sendRawTransaction({
-      serializedTransaction: signedTx,
-    });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/already known/i.test(msg)) {
-      const { keccak256 } = await import('viem');
-      txHash = keccak256(signedTx);
-    } else {
-      throw err;
-    }
-  }
-
-  const receipt = await publicClient.waitForTransactionReceipt({
-    hash: txHash,
-    confirmations: 1,
-    timeout: 120_000,
-    pollingInterval: 4_000,
-  });
-
-  return { txHash, blockNumber: receipt.blockNumber };
-}
 
 // ============================================================================
 // Tests
@@ -376,7 +325,7 @@ describeWithTestnet('Sepolia DeFi Full Flow (Wrap → Swap → Supply)', () => {
     expect(wethBalance).toBeGreaterThanOrEqual(WRAP_AMOUNT);
 
     console.log(`  WETH wrap: ${ETHERSCAN_BASE}${result.txHash}`);
-  }, 120_000);
+  }, 240_000);
 
   // --------------------------------------------------------------------------
   // Step 2: Approve WETH for Uniswap V3 Router
@@ -401,7 +350,7 @@ describeWithTestnet('Sepolia DeFi Full Flow (Wrap → Swap → Supply)', () => {
     expect(result.blockNumber).toBeGreaterThan(0n);
 
     console.log(`  WETH approve (Router): ${ETHERSCAN_BASE}${result.txHash}`);
-  }, 120_000);
+  }, 240_000);
 
   // --------------------------------------------------------------------------
   // Step 3: Swap WETH -> USDC via exactInputSingle
@@ -445,7 +394,7 @@ describeWithTestnet('Sepolia DeFi Full Flow (Wrap → Swap → Supply)', () => {
     expect(result.blockNumber).toBeGreaterThan(0n);
 
     console.log(`  WETH->USDC swap: ${ETHERSCAN_BASE}${result.txHash}`);
-  }, 120_000);
+  }, 240_000);
 
   // --------------------------------------------------------------------------
   // Step 4: Verify USDC received
@@ -486,7 +435,7 @@ describeWithTestnet('Sepolia DeFi Full Flow (Wrap → Swap → Supply)', () => {
     expect(result.blockNumber).toBeGreaterThan(0n);
 
     console.log(`  WETH approve (Aave): ${ETHERSCAN_BASE}${result.txHash}`);
-  }, 120_000);
+  }, 240_000);
 
   // --------------------------------------------------------------------------
   // Step 6: Supply WETH to Aave V3 Pool
@@ -511,7 +460,7 @@ describeWithTestnet('Sepolia DeFi Full Flow (Wrap → Swap → Supply)', () => {
     expect(result.blockNumber).toBeGreaterThan(0n);
 
     console.log(`  Aave V3 supply: ${ETHERSCAN_BASE}${result.txHash}`);
-  }, 120_000);
+  }, 240_000);
 
   // --------------------------------------------------------------------------
   // Step 7: Verify supply success (receipt already confirmed in signAndBroadcast)

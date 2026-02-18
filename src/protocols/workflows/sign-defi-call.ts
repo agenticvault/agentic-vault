@@ -1,4 +1,4 @@
-import type { WorkflowContext, WorkflowResult } from './types.js';
+import { parseDecimalBigInt, type WorkflowContext, type WorkflowResult } from './types.js';
 
 export interface SignDefiCallInput {
   chainId: number;
@@ -53,7 +53,7 @@ export async function signDefiCall(
   let amountWei: bigint | undefined;
   if (input.value) {
     try {
-      amountWei = BigInt(input.value);
+      amountWei = parseDecimalBigInt(input.value);
     } catch {
       ctx.auditSink.log({
         service,

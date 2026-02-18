@@ -1,4 +1,4 @@
-<!-- Source: packages/openclaw-plugin/README.md | Commit: 96a8dcc | Last synced: 2026-02-16 -->
+<!-- Source: packages/openclaw-plugin/README.md | Commit: 9d69f83 | Last synced: 2026-02-17 -->
 
 # @agenticvault/openclaw
 
@@ -24,12 +24,22 @@ npm install @agenticvault/openclaw @agenticvault/agentic-vault
       "config": {
         "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
         "region": "us-east-1",
-        "policyConfigPath": "./policy.json"
+        "policyConfigPath": "./policy.json",
+        "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
       }
     }
   }
 }
 ```
+
+| 选项 | 必需 | 说明 |
+|------|------|------|
+| `keyId` | 是 | AWS KMS 密钥 ARN |
+| `region` | 是 | AWS 区域 |
+| `policyConfigPath` | 否 | 策略 JSON 文件路径（未指定时默认全部拒绝） |
+| `rpcUrl` | 否 | 余额/转账工具的 RPC 端点。使用 `vault_get_balance`、`vault_send_transfer`、`vault_send_erc20_transfer` 时必需。 |
+| `expectedAddress` | 否 | 用于验证的预期钱包地址 |
+| `enableUnsafeRawSign` | 否 | 启用原始签名工具（默认：`false`） |
 
 ## 可用工具
 
@@ -41,6 +51,9 @@ npm install @agenticvault/openclaw @agenticvault/agentic-vault
 | `vault_health_check` | 检查保险库签名器的健康状态 |
 | `vault_sign_defi_call` | 在 calldata 解码与策略验证后签署 DeFi 合约交互 |
 | `vault_sign_permit` | 在策略验证后签署 EIP-2612 permit |
+| `vault_get_balance` | 查询原生代币或 ERC20 代币余额（需要 `rpcUrl`） |
+| `vault_send_transfer` | 发送原生 ETH 转账，含策略验证（需要 `rpcUrl`） |
+| `vault_send_erc20_transfer` | 发送 ERC20 代币转账，含策略验证（需要 `rpcUrl`） |
 
 ### 双重闸控工具（需要 `enableUnsafeRawSign: true`）
 

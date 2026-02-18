@@ -1,7 +1,7 @@
 # Open-Source Readiness
 
 > **Created**: 2026-02-15
-> **Status**: Implementation Done (pending commit)
+> **Status**: Done
 > **Priority**: P0
 > **Feature**: v0-initial-release
 > **Depends on**: All Phase 1-8 requests (Done)
@@ -110,7 +110,7 @@ Brainstorming 識別 3 個阻擋項 + 6 個應修復項 + 3 個可選項。
 | Analysis | Done | Brainstorming Nash Equilibrium |
 | Development | Done | 所有 Blockers + Should Fix + 額外發現已實作 |
 | Testing | Done | CI gates 全數通過（typecheck / lint / 529+33 tests / build） |
-| Acceptance | Pending commit | 最終審計 ✅ READY FOR RELEASE（Claude + Codex 共識）；B3 待 git commit 後勾選 |
+| Acceptance | Done | v0.1.0 已發佈，所有開源準備工作完成 |
 
 ## References
 

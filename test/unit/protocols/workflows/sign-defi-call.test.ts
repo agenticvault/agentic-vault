@@ -89,6 +89,13 @@ describe('signDefiCall workflow', () => {
       );
     });
 
+    it('should reject hex-prefixed value (0x3e8)', async () => {
+      const ctx = createMockCtx();
+      const result = await signDefiCall(ctx, 'sign_defi_call', { ...VALID_INPUT, value: '0x3e8' });
+      expect(result.status).toBe('error');
+      expect(result).toHaveProperty('reason', 'Invalid value: must be a decimal string');
+    });
+
     it('should pass valid value to policy as bigint', async () => {
       const ctx = createMockCtx();
       await signDefiCall(ctx, 'sign_defi_call', { ...VALID_INPUT, value: '1000000' });

@@ -96,6 +96,13 @@ describe('signPermit workflow', () => {
         expect.objectContaining({ action: 'sign_permit', result: 'error' }),
       );
     });
+
+    it('should reject hex-prefixed value (0x10)', async () => {
+      const ctx = createMockCtx();
+      const result = await signPermit(ctx, validInput({ value: '0x10' }));
+      expect(result.status).toBe('error');
+      expect(result).toHaveProperty('reason', 'Invalid value: must be a decimal string');
+    });
   });
 
   describe('policy evaluation', () => {

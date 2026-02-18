@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -6,6 +6,7 @@ import { encodeFunctionData, type Address } from 'viem';
 import { createMcpServer } from '@/agentic/mcp/server.js';
 import { PolicyEngine, erc20Evaluator, uniswapV3Evaluator, aaveV3Evaluator } from '@/protocols/index.js';
 import type { PolicyConfigV2 } from '@/protocols/index.js';
+import type { ToolRpcProvider } from '@/agentic/mcp/tools/shared.js';
 import { AuditLogger } from '@/agentic/audit/logger.js';
 import { LocalEvmSigner, HARDHAT_0_ADDRESS } from '../helpers/local-signer.js';
 import { Writable } from 'node:stream';
@@ -114,8 +115,9 @@ const TEST_POLICY: PolicyConfigV2 = {
     USDC.toLowerCase() as `0x${string}`,
     SWAP_ROUTER.toLowerCase() as `0x${string}`,
     AAVE_V3_POOL.toLowerCase() as `0x${string}`,
+    HARDHAT_0_ADDRESS.toLowerCase() as `0x${string}`, // for send_transfer recipient
   ],
-  allowedSelectors: ['0x095ea7b3', '0x04e45aaf', '0x617ba037', '0xa415bcad', '0x573ade81', '0x69328dec'],
+  allowedSelectors: ['0x095ea7b3', '0x04e45aaf', '0x617ba037', '0xa415bcad', '0x573ade81', '0x69328dec', '0xa9059cbb'],
   maxAmountWei: 10n ** 18n,
   maxDeadlineSeconds: 3600,
   protocolPolicies: {
@@ -124,6 +126,7 @@ const TEST_POLICY: PolicyConfigV2 = {
       recipientAllowlist: [
         SPENDER.toLowerCase() as Address,
         AAVE_V3_POOL.toLowerCase() as Address,
+        HARDHAT_0_ADDRESS.toLowerCase() as Address, // for send_erc20_transfer recipient
       ],
       maxAllowanceWei: 10n ** 18n,
     },
@@ -187,9 +190,12 @@ describe('MCP server E2E (InMemoryTransport + LocalEvmSigner)', () => {
       expect(names).toContain('sign_swap');
       expect(names).toContain('sign_permit');
       expect(names).toContain('sign_defi_call');
+      expect(names).toContain('get_balance');
+      expect(names).toContain('send_transfer');
+      expect(names).toContain('send_erc20_transfer');
       expect(names).not.toContain('sign_transaction');
       expect(names).not.toContain('sign_typed_data');
-      expect(names).toHaveLength(5);
+      expect(names).toHaveLength(8);
     });
   });
 
@@ -603,6 +609,205 @@ describe('MCP server E2E (InMemoryTransport + LocalEvmSigner)', () => {
       expect(result.isError).toBeFalsy();
     });
   });
+
+  // --- Transfer/Balance tools without rpcProvider ---
+
+  describe('transfer/balance tools (no rpcProvider)', () => {
+    it('should return error for get_balance without rpcProvider', async () => {
+      const result = await client.callTool({
+        name: 'get_balance',
+        arguments: { chainId: 1 },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toContain('RPC provider is required');
+      expect(result.isError).toBe(true);
+    });
+
+    it('should return error for send_transfer without rpcProvider', async () => {
+      const result = await client.callTool({
+        name: 'send_transfer',
+        arguments: {
+          chainId: 1,
+          to: HARDHAT_0_ADDRESS,
+          value: '1000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toContain('RPC provider is required');
+      expect(result.isError).toBe(true);
+    });
+
+    it('should return error for send_erc20_transfer without rpcProvider', async () => {
+      const result = await client.callTool({
+        name: 'send_erc20_transfer',
+        arguments: {
+          chainId: 1,
+          token: USDC,
+          to: HARDHAT_0_ADDRESS,
+          amount: '1000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toContain('RPC provider is required');
+      expect(result.isError).toBe(true);
+    });
+  });
+});
+
+// ============================================================================
+// Separate describe: transfer/balance tools with rpcProvider
+// ============================================================================
+
+function createMockRpcProvider(): ToolRpcProvider {
+  return {
+    getBalance: vi.fn().mockResolvedValue(1_000_000_000_000_000_000n),
+    getErc20Balance: vi.fn().mockResolvedValue(500_000_000n),
+    getTransactionCount: vi.fn().mockResolvedValue(42),
+    estimateGas: vi.fn().mockResolvedValue(21_000n),
+    getGasPrice: vi.fn().mockResolvedValue(20_000_000_000n),
+    estimateFeesPerGas: vi.fn().mockResolvedValue({ maxFeePerGas: 30_000_000_000n, maxPriorityFeePerGas: 1_500_000_000n }),
+    getNativeCurrencySymbol: vi.fn().mockReturnValue('ETH'),
+    sendRawTransaction: vi.fn().mockResolvedValue(
+      '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as `0x${string}`,
+    ),
+  };
+}
+
+describe('MCP server E2E (with rpcProvider)', () => {
+  let server: McpServer;
+  let client: Client;
+
+  beforeAll(async () => {
+    const signer = new LocalEvmSigner();
+    const policyEngine = new PolicyEngine(TEST_POLICY, [erc20Evaluator, uniswapV3Evaluator, aaveV3Evaluator]);
+    const sink = new Writable({ write(_chunk, _enc, cb) { cb(); } });
+    const auditLogger = new AuditLogger(sink);
+    const rpcProvider = createMockRpcProvider();
+
+    server = createMcpServer({ signer, policyEngine, auditLogger, rpcProvider });
+
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: 'e2e-test-rpc', version: '1.0.0' });
+
+    await Promise.all([
+      client.connect(clientTransport),
+      server.connect(serverTransport),
+    ]);
+  });
+
+  afterAll(async () => {
+    await client.close();
+    await server.close();
+  });
+
+  describe('get_balance', () => {
+    it('should return native balance via MCP round-trip', async () => {
+      const result = await client.callTool({
+        name: 'get_balance',
+        arguments: { chainId: 1 },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      const data = JSON.parse(text);
+      expect(data.balance).toBe('1000000000000000000');
+      expect(data.symbol).toBe('ETH');
+      expect(result.isError).toBeFalsy();
+    });
+
+    it('should return ERC20 balance with token parameter', async () => {
+      const result = await client.callTool({
+        name: 'get_balance',
+        arguments: { chainId: 1, token: USDC },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      const data = JSON.parse(text);
+      expect(data.balance).toBe('500000000');
+      expect(data.symbol).toBe('ERC20');
+      expect(result.isError).toBeFalsy();
+    });
+  });
+
+  describe('send_transfer', () => {
+    it('should succeed and return txHash JSON', async () => {
+      const result = await client.callTool({
+        name: 'send_transfer',
+        arguments: {
+          chainId: 1,
+          to: HARDHAT_0_ADDRESS,
+          value: '500000000000000000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      const data = JSON.parse(text);
+      expect(data.txHash).toMatch(/^0x[0-9a-f]+$/);
+      expect(data.explorerUrl).toContain('etherscan.io');
+      expect(result.isError).toBeFalsy();
+    });
+
+    it('should return policy denied error for disallowed chain', async () => {
+      const result = await client.callTool({
+        name: 'send_transfer',
+        arguments: {
+          chainId: 999,
+          to: HARDHAT_0_ADDRESS,
+          value: '1000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toContain('Policy denied');
+      expect(result.isError).toBe(true);
+    });
+  });
+
+  describe('send_erc20_transfer', () => {
+    it('should succeed and return txHash JSON', async () => {
+      const result = await client.callTool({
+        name: 'send_erc20_transfer',
+        arguments: {
+          chainId: 1,
+          token: USDC,
+          to: HARDHAT_0_ADDRESS,
+          amount: '500000000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      const data = JSON.parse(text);
+      expect(data.txHash).toMatch(/^0x[0-9a-f]+$/);
+      expect(result.isError).toBeFalsy();
+    });
+
+    it('should return policy denied for unauthorized token', async () => {
+      const result = await client.callTool({
+        name: 'send_erc20_transfer',
+        arguments: {
+          chainId: 1,
+          token: '0x0000000000000000000000000000000000000bad',
+          to: HARDHAT_0_ADDRESS,
+          amount: '1000',
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const text = (result.content as any[])[0].text;
+      expect(text).toContain('Policy denied');
+      expect(result.isError).toBe(true);
+    });
+  });
 });
 
 // ============================================================================
@@ -640,7 +845,7 @@ describe('MCP server E2E (unsafeRawSign enabled)', () => {
     await server.close();
   });
 
-  it('should list all 7 tools when unsafeRawSign is enabled', async () => {
+  it('should list all 10 tools when unsafeRawSign is enabled', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
 
@@ -649,8 +854,11 @@ describe('MCP server E2E (unsafeRawSign enabled)', () => {
     expect(names).toContain('sign_swap');
     expect(names).toContain('sign_permit');
     expect(names).toContain('sign_defi_call');
+    expect(names).toContain('get_balance');
+    expect(names).toContain('send_transfer');
+    expect(names).toContain('send_erc20_transfer');
     expect(names).toContain('sign_transaction');
     expect(names).toContain('sign_typed_data');
-    expect(names).toHaveLength(7);
+    expect(names).toHaveLength(10);
   });
 });

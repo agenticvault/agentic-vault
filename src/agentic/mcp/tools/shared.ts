@@ -84,10 +84,23 @@ export interface ToolAuditLogger {
   log(entry: ToolAuditInput): unknown;
 }
 
+/** RPC provider interface for on-chain reads and broadcast */
+export interface ToolRpcProvider {
+  getBalance(chainId: number, address: `0x${string}`): Promise<bigint>;
+  getErc20Balance(chainId: number, token: `0x${string}`, owner: `0x${string}`): Promise<bigint>;
+  getTransactionCount(chainId: number, address: `0x${string}`): Promise<number>;
+  estimateGas(chainId: number, tx: { from: `0x${string}`; to: `0x${string}`; value?: bigint; data?: `0x${string}` }): Promise<bigint>;
+  getGasPrice(chainId: number): Promise<bigint>;
+  estimateFeesPerGas(chainId: number): Promise<{ maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }>;
+  getNativeCurrencySymbol(chainId: number): string;
+  sendRawTransaction(chainId: number, signedTx: `0x${string}`): Promise<`0x${string}`>;
+}
+
 /** Full context passed to each MCP tool */
 export interface ToolContext {
   signer: ToolSigner;
   policyEngine: ToolPolicyEngine;
   auditLogger: ToolAuditLogger;
   dispatcher?: ToolDispatcher;
+  rpcProvider?: ToolRpcProvider;
 }

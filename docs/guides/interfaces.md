@@ -73,6 +73,8 @@ agentic-vault mcp
 
 Global options: `--key-id`, `--region`, `--expected-address`, `--policy-config`, `--output` (json/human/raw). The `sign` command also accepts `--yes` to skip TTY confirmation.
 
+> **Note**: The `agentic-vault mcp` subcommand starts a basic MCP server without RPC connectivity. For balance/transfer tools, use the dedicated `agentic-vault-mcp` binary (see [MCP Server](#3-mcp-server-for-ai-agents)).
+
 ## 3. MCP Server (for AI Agents)
 
 The MCP server exposes wallet operations as tools that AI agents can call over stdio.
@@ -86,17 +88,22 @@ npx -y -p @agenticvault/agentic-vault agentic-vault-mcp \
 
 ### MCP Tools
 
-| Tool | Description | Default |
-|------|-------------|---------|
-| `get_address` | Get the wallet's Ethereum address | Enabled |
-| `health_check` | Verify KMS key configuration and connectivity | Enabled |
-| `sign_defi_call` | Sign a DeFi transaction with calldata decoding + policy | Enabled |
-| `sign_swap` | Sign a swap transaction (routes through decoder pipeline) | Enabled |
-| `sign_permit` | Sign an EIP-2612 permit (policy-constrained) | Enabled |
-| `sign_transaction` | Raw transaction signing | Disabled (requires `--unsafe-raw-sign`) |
-| `sign_typed_data` | Raw EIP-712 typed data signing | Disabled (requires `--unsafe-raw-sign`) |
+| Tool | Description | Default | Requires |
+|------|-------------|---------|----------|
+| `get_address` | Get the wallet's Ethereum address | Enabled | — |
+| `health_check` | Verify KMS key configuration and connectivity | Enabled | — |
+| `get_balance` | Query native ETH or ERC20 token balance | Enabled | — |
+| `send_transfer` | Send native ETH transfer (policy-validated) | Enabled | — |
+| `send_erc20_transfer` | Send ERC20 token transfer (policy-validated) | Enabled | — |
+| `sign_defi_call` | Sign a DeFi transaction with calldata decoding + policy | Enabled | — |
+| `sign_swap` | Sign a swap transaction (routes through decoder pipeline) | Enabled | — |
+| `sign_permit` | Sign an EIP-2612 permit (policy-constrained) | Enabled | — |
+| `sign_transaction` | Raw transaction signing | Disabled | `--unsafe-raw-sign` |
+| `sign_typed_data` | Raw EIP-712 typed data signing | Disabled | `--unsafe-raw-sign` |
 
 To enable raw signing tools, add `--unsafe-raw-sign` to the MCP server command.
+
+Balance and transfer tools use public RPCs by default for supported chains (Ethereum, Sepolia, Arbitrum, Base, Polygon). For other chains, pass `--rpc-url <endpoint>` or set `VAULT_RPC_URL`.
 
 ### Claude Desktop / Claude Code Configuration
 
@@ -131,6 +138,6 @@ Install [`@agenticvault/openclaw`](../../packages/openclaw-plugin/) to use agent
 npm install @agenticvault/openclaw @agenticvault/agentic-vault
 ```
 
-4 safe tools are always registered (`vault_get_address`, `vault_health_check`, `vault_sign_defi_call`, `vault_sign_permit`). 2 additional tools (`vault_sign_transaction`, `vault_sign_typed_data`) require `enableUnsafeRawSign: true` in config.
+7 safe tools are always registered (`vault_get_address`, `vault_health_check`, `vault_sign_defi_call`, `vault_sign_permit`, `vault_get_balance`, `vault_send_transfer`, `vault_send_erc20_transfer`). 2 additional tools (`vault_sign_transaction`, `vault_sign_typed_data`) require `enableUnsafeRawSign: true` in config. Balance and transfer tools require `rpcUrl` in the plugin config.
 
 See the [OpenClaw plugin package](../../packages/openclaw-plugin/) for configuration details.

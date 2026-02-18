@@ -11,6 +11,9 @@ vi.mock('@agenticvault/agentic-vault/protocols', () => ({
   signPermit: vi.fn().mockResolvedValue({ status: 'approved', data: '{"v":27,"r":"0xabc","s":"0xdef"}' }),
   getAddressWorkflow: vi.fn().mockResolvedValue({ status: 'approved', data: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' }),
   healthCheckWorkflow: vi.fn().mockResolvedValue({ status: 'approved', data: '{"status":"healthy"}' }),
+  getBalanceWorkflow: vi.fn().mockResolvedValue({ status: 'approved', data: '{"balance":"1000000000000000000","symbol":"ETH"}' }),
+  sendTransfer: vi.fn().mockResolvedValue({ status: 'approved', data: '{"txHash":"0xabc123","explorerUrl":"https://etherscan.io/tx/0xabc123"}' }),
+  sendErc20Transfer: vi.fn().mockResolvedValue({ status: 'approved', data: '{"txHash":"0xdef456","explorerUrl":"https://etherscan.io/tx/0xdef456"}' }),
 }));
 
 // ============================================================================
@@ -85,22 +88,25 @@ describe('registerTools', () => {
   });
 
   describe('tool registration', () => {
-    it('should register 4 safe tools when enableUnsafeRawSign is false', async () => {
+    it('should register 7 safe tools when enableUnsafeRawSign is false', async () => {
       const { registerTools } = await import('../../src/tools.js');
       registerTools(api, ctx, SAFE_CONFIG);
 
-      expect(api.tools.size).toBe(4);
+      expect(api.tools.size).toBe(7);
       expect(api.tools.has('vault_get_address')).toBe(true);
       expect(api.tools.has('vault_health_check')).toBe(true);
       expect(api.tools.has('vault_sign_defi_call')).toBe(true);
       expect(api.tools.has('vault_sign_permit')).toBe(true);
+      expect(api.tools.has('vault_get_balance')).toBe(true);
+      expect(api.tools.has('vault_send_transfer')).toBe(true);
+      expect(api.tools.has('vault_send_erc20_transfer')).toBe(true);
     });
 
-    it('should register 6 tools when enableUnsafeRawSign is true', async () => {
+    it('should register 9 tools when enableUnsafeRawSign is true', async () => {
       const { registerTools } = await import('../../src/tools.js');
       registerTools(api, ctx, UNSAFE_CONFIG);
 
-      expect(api.tools.size).toBe(6);
+      expect(api.tools.size).toBe(9);
       expect(api.tools.has('vault_sign_transaction')).toBe(true);
       expect(api.tools.has('vault_sign_typed_data')).toBe(true);
     });
@@ -372,6 +378,73 @@ describe('registerTools', () => {
     });
   });
 
+  describe('vault_get_balance', () => {
+    it('should call getBalanceWorkflow and return result', async () => {
+      const { registerTools } = await import('../../src/tools.js');
+      const { getBalanceWorkflow } = await import('@agenticvault/agentic-vault/protocols');
+      registerTools(api, ctx, SAFE_CONFIG);
+
+      const args = { chainId: 1 };
+      const result = await api.tools.get('vault_get_balance')!.handler(args);
+
+      expect(getBalanceWorkflow).toHaveBeenCalledWith(ctx, {
+        chainId: 1,
+        address: undefined,
+        token: undefined,
+      });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.balance).toBe('1000000000000000000');
+    });
+  });
+
+  describe('vault_send_transfer', () => {
+    it('should call sendTransfer workflow with correct args', async () => {
+      const { registerTools } = await import('../../src/tools.js');
+      const { sendTransfer } = await import('@agenticvault/agentic-vault/protocols');
+      registerTools(api, ctx, SAFE_CONFIG);
+
+      const args = {
+        chainId: 1,
+        to: '0x1234567890123456789012345678901234567890',
+        value: '1000000000000000000',
+      };
+      const result = await api.tools.get('vault_send_transfer')!.handler(args);
+
+      expect(sendTransfer).toHaveBeenCalledWith(ctx, {
+        chainId: 1,
+        to: '0x1234567890123456789012345678901234567890',
+        value: '1000000000000000000',
+      });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.txHash).toBe('0xabc123');
+    });
+  });
+
+  describe('vault_send_erc20_transfer', () => {
+    it('should call sendErc20Transfer workflow with correct args', async () => {
+      const { registerTools } = await import('../../src/tools.js');
+      const { sendErc20Transfer } = await import('@agenticvault/agentic-vault/protocols');
+      registerTools(api, ctx, SAFE_CONFIG);
+
+      const args = {
+        chainId: 1,
+        token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        to: '0x1234567890123456789012345678901234567890',
+        amount: '1000000',
+      };
+      const result = await api.tools.get('vault_send_erc20_transfer')!.handler(args);
+
+      expect(sendErc20Transfer).toHaveBeenCalledWith(ctx, {
+        chainId: 1,
+        token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        to: '0x1234567890123456789012345678901234567890',
+        amount: '1000000',
+      });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.txHash).toBe('0xdef456');
+    });
+  });
+
   describe('response format', () => {
     it('should return { content: [{ type: "text", text }] } for all tools', async () => {
       const { registerTools } = await import('../../src/tools.js');
@@ -389,6 +462,7 @@ describe('registerTools', () => {
           token: '0x1234567890123456789012345678901234567890',
           spender: '0x1234567890123456789012345678901234567890',
           value: '1000',
+          amount: '1000',
           deadline: 1700000000,
         });
 

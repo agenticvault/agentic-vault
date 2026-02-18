@@ -3,6 +3,7 @@
 import {
   createSigningProvider,
   EvmSignerAdapter,
+  ViemRpcProvider,
   type SignerAdapter,
 } from '../index.js';
 import {
@@ -22,12 +23,14 @@ export function parseArgs(argv: string[]): {
   expectedAddress?: string;
   unsafeRawSign: boolean;
   policyConfig?: string;
+  rpcUrl?: string;
 } {
   let keyId = '';
   let region = '';
   let expectedAddress: string | undefined;
   let unsafeRawSign = false;
   let policyConfig: string | undefined;
+  let rpcUrl: string | undefined;
 
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
@@ -47,6 +50,9 @@ export function parseArgs(argv: string[]): {
       case '--policy-config':
         policyConfig = argv[++i];
         break;
+      case '--rpc-url':
+        rpcUrl = argv[++i];
+        break;
       default:
         // Ignore unknown arguments
         break;
@@ -55,11 +61,12 @@ export function parseArgs(argv: string[]): {
 
   if (!keyId) keyId = process.env.VAULT_KEY_ID ?? '';
   if (!region) region = process.env.VAULT_REGION ?? '';
+  if (!rpcUrl) rpcUrl = process.env.VAULT_RPC_URL;
 
   if (!keyId) throw new Error('--key-id or VAULT_KEY_ID environment variable is required');
   if (!region) throw new Error('--region or VAULT_REGION environment variable is required');
 
-  return { keyId, region, expectedAddress, unsafeRawSign, policyConfig };
+  return { keyId, region, expectedAddress, unsafeRawSign, policyConfig, rpcUrl };
 }
 
 const DEFAULT_POLICY: PolicyConfigV2 = {
@@ -92,11 +99,15 @@ async function main(): Promise<void> {
   // Create audit logger
   const auditLogger = new AuditLogger();
 
+  // Create RPC provider (optional — enables get_balance, send_transfer, send_erc20_transfer)
+  const rpcProvider = new ViemRpcProvider({ rpcUrl: args.rpcUrl });
+
   // Start MCP stdio server
   await startStdioServer({
     signer,
     policyEngine,
     auditLogger,
+    rpcProvider,
     unsafeRawSign: args.unsafeRawSign,
   });
 }

@@ -5,6 +5,7 @@ dist/
 .npmrc
 *.tsbuildinfo
 *.tgz
+.mcp.*
 .DS_Store
 coverage/
 

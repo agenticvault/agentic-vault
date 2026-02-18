@@ -2,7 +2,7 @@
 
 > **Status**: Active
 > **Scope**: 專案級架構總覽
-> **Note**: 本文件描述現行架構與已規劃的 target state。尚未實作的部分標記為 `[Planned]`。
+> **Note**: 本文件描述現行架構。各 section 保留 "Previous (v0)" 區塊以記錄演進歷程。
 
 ## 1. Layer Architecture
 
@@ -11,37 +11,18 @@
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │            Layer 3: Interface Layer (src/agentic/)            │
-│  MCP Tools │ CLI │ Audit Logger │ Skills                     │
-│  sign_swap │ sign_permit │ get_address │ health_check        │
-└──────────────────────────┬───────────────────────────────────┘
-                           │
-     ┌─────────────────────▼─────────────────┐
-     │     PolicyEngine V1                    │  src/agentic/policy/
-     │     evaluate(request)                  │
-     │     → chainId/contract/selector checks │
-     └─────────────────────┬─────────────────┘
-                           │
-     ┌─────────────────────▼─────────────────┐
-     │  Layer 1: Core Signing                 │  src/core/
-     │  SigningProvider → EvmSignerAdapter     │
-     └───────────────────────────────────────┘
-```
-
-### Target State [Planned]
-
-> Defined in [DeFi Protocol Integration Tech Spec](../features/defi-protocol-integration/2-tech-spec.md)
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│            Layer 3: Interface Layer (src/agentic/)            │
-│  sign_swap (upgraded) │ sign_defi_call (new) │ sign_permit   │
-│  Audit Logger │ CLI │ MCP Server                             │
+│  sign_swap │ sign_defi_call │ sign_permit │ get_address      │
+│  get_balance │ send_transfer │ send_erc20_transfer           │
+│  health_check │ Audit Logger │ CLI │ MCP Server              │
 └──────────┬────────────┴──────────┬───────────┴───────────────┘
            │                       │
      ┌─────▼───────────────────────▼───────┐
-     │     Layer 2: Protocol Logic          │  src/protocols/ [Planned]
+     │     Layer 2: Protocol Logic          │  src/protocols/
      │     ProtocolDispatcher               │
      │     → DecodedIntent → PolicyEngine   │
+     │     Workflows: sign-defi-call,       │
+     │       get-balance, send-transfer,    │
+     │       send-erc20-transfer            │
      └─────┬──────┬──────┬──────┬──────────┘
            │      │      │      │
     ┌──────▼┐ ┌───▼──┐ ┌─▼───┐ ┌▼────────┐
@@ -50,8 +31,13 @@
     └──────┬┘ └───┬──┘ └─┬───┘ └─────────┘
            │      │      │
      ┌─────▼──────▼──────▼─────────────────┐
-     │  Layer 1: Core Signing (unchanged)   │  src/core/
+     │  Layer 1: Core Signing               │  src/core/
      │  SigningProvider → EvmSignerAdapter   │
+     └─────────────────────────────────────┘
+           │
+     ┌─────▼───────────────────────────────┐
+     │  RPC Layer (optional)                │  src/rpc/
+     │  ViemRpcProvider (balance, gas, tx)  │
      └─────────────────────────────────────┘
 ```
 
@@ -60,12 +46,13 @@
 | Layer | Path | Responsibility | MCP Dependency | Status |
 |-------|------|---------------|---------------|--------|
 | 1 | `src/core/` | Signing provider abstraction, EVM adapter | No | Implemented |
-| 2 | `src/protocols/` | Protocol decoder, policy engine, calldata validation | No | [Planned] |
+| RPC | `src/rpc/` | On-chain reads, gas estimation, tx broadcast | No | Implemented |
+| 2 | `src/protocols/` | Protocol decoder, policy engine, workflows | No | Implemented |
 | 3 | `src/agentic/` | MCP server, CLI, audit, tools | Yes | Implemented |
 
 ## 2. Package Subpath Exports
 
-### Current
+### Previous (v0)
 
 ```json
 {
@@ -79,7 +66,7 @@
 | `.` | Core signing (SigningProvider, EvmSignerAdapter, factory) + legacy KMS re-exports + type-only policy re-exports | No |
 | `./agentic` | MCP server, CLI, audit logger, PolicyEngine | Yes |
 
-### Target [Planned]
+### Current
 
 ```json
 {
@@ -91,13 +78,13 @@
 
 | Subpath | Contents | MCP dep |
 |---------|----------|---------|
-| `.` | Core signing + type-only re-exports (backward compat, deprecated) | No |
-| `./protocols` | Protocol decoder, dispatcher, PolicyEngine V2 | No |
+| `.` | Core signing (SigningProvider, EvmSignerAdapter, factory) + ViemRpcProvider + type-only policy re-exports | No |
+| `./protocols` | Protocol decoder, dispatcher, PolicyEngine, workflows | No |
 | `./agentic` | MCP server, CLI, audit logger | Yes |
 
 ## 3. Trust Boundary
 
-### Current
+### Previous (v0)
 
 | Module | Allowed Imports | Prohibited |
 |--------|----------------|------------|
@@ -106,17 +93,19 @@
 
 Enforced by `test/unit/agentic/trust-boundary.test.ts`.
 
-### Target [Planned]
+### Current
 
 | Module | Allowed Imports | Prohibited |
 |--------|----------------|------------|
 | `src/core/**` | `viem`, internal core modules | `src/agentic/**`, `src/protocols/**` |
-| `src/protocols/**` | `viem`, `src/core/**` | `@modelcontextprotocol/*`, `src/agentic/**` |
+| `src/rpc/**` | `viem`, `src/protocols/` (catalog + types) | `src/agentic/**`, `@modelcontextprotocol/*` |
+| `src/protocols/**` | `viem`, `zod`, `src/core/**` | `@modelcontextprotocol/*`, `src/agentic/**` |
 | `src/agentic/**` | `src/index.js`, `src/protocols/index.js` (public entrypoints only) | Direct `src/core/**`, `src/providers/**` |
 
 Import asymmetry is intentional:
 - `src/protocols/` imports from `src/core/` directly (peer domain module)
 - `src/agentic/` imports only through public entrypoints (outer boundary)
+- `src/rpc/` is a standalone module, exposed via root `src/index.ts`
 
 ## 4. Consumer Patterns
 
@@ -133,6 +122,7 @@ Import asymmetry is intentional:
 |---------|-----------|--------------|
 | Core Signer | [v0-initial-release/2-tech-spec.md](../features/v0-initial-release/2-tech-spec.md) (Superseded) | Layer 1 |
 | DeFi Protocol Integration | [defi-protocol-integration/2-tech-spec.md](../features/defi-protocol-integration/2-tech-spec.md) | Layer 2 |
+| Transfer & Balance | [transfer-balance/2-tech-spec.md](../features/transfer-balance/2-tech-spec.md) | Layer 2 + RPC |
 
 ## References
 

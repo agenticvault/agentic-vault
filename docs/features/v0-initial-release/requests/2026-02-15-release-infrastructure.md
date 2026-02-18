@@ -1,7 +1,7 @@
 # Release Infrastructure
 
 > **Created**: 2026-02-15
-> **Status**: Implementation Done (pending commit)
+> **Status**: Done
 > **Priority**: P0
 > **Feature**: v0-initial-release
 > **Depends on**: [2026-02-15-namespace-migration.md](./2026-02-15-namespace-migration.md)
@@ -95,7 +95,7 @@ v0.1.0 發佈前需要完整的自動化發佈基礎設施。包含兩部分：
 | Analysis | Done | 使用者提供 Trusted Publishing 完整說明 |
 | Development | Done | Workflows + release script + 59 tests |
 | Testing | Done | 529 tests pass, Codex review x3 pass |
-| Acceptance | Pending commit | 等 git commit 後完成 |
+| Acceptance | Done | Release infra used for v0.1.0 publish |
 
 ## References
 

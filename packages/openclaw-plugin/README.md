@@ -22,12 +22,22 @@ Register the plugin in your OpenClaw agent configuration:
       "config": {
         "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
         "region": "us-east-1",
-        "policyConfigPath": "./policy.json"
+        "policyConfigPath": "./policy.json",
+        "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
       }
     }
   }
 }
 ```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `keyId` | Yes | AWS KMS key ARN |
+| `region` | Yes | AWS region |
+| `policyConfigPath` | No | Path to policy JSON file (deny-all by default when omitted) |
+| `rpcUrl` | No | RPC endpoint for balance/transfer tools. Required to use `vault_get_balance`, `vault_send_transfer`, `vault_send_erc20_transfer`. |
+| `expectedAddress` | No | Expected wallet address for verification |
+| `enableUnsafeRawSign` | No | Enable raw signing tools (default: `false`) |
 
 ## Available Tools
 
@@ -39,6 +49,9 @@ Register the plugin in your OpenClaw agent configuration:
 | `vault_health_check` | Check the health status of the vault signer |
 | `vault_sign_defi_call` | Sign a DeFi contract interaction after calldata decoding and policy validation |
 | `vault_sign_permit` | Sign an EIP-2612 permit after policy validation |
+| `vault_get_balance` | Query native or ERC20 token balance (requires `rpcUrl`) |
+| `vault_send_transfer` | Send native ETH transfer with policy validation (requires `rpcUrl`) |
+| `vault_send_erc20_transfer` | Send ERC20 token transfer with policy validation (requires `rpcUrl`) |
 
 ### Dual-Gated Tools (requires `enableUnsafeRawSign: true`)
 

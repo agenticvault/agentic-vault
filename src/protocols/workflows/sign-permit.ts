@@ -1,4 +1,4 @@
-import type { WorkflowContext, WorkflowResult } from './types.js';
+import { parseDecimalBigInt, type WorkflowContext, type WorkflowResult } from './types.js';
 
 export interface SignPermitInput {
   chainId: number;
@@ -71,7 +71,7 @@ export async function signPermit(
   // 1. Parse value safely
   let amountWei: bigint;
   try {
-    amountWei = BigInt(input.value);
+    amountWei = parseDecimalBigInt(input.value);
   } catch {
     ctx.auditSink.log({
       service,

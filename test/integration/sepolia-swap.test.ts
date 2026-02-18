@@ -15,6 +15,7 @@ import {
   EvmSignerAdapter,
   type SignerAdapter,
 } from '@/index.js';
+import { signAndBroadcast } from '../helpers/sepolia-broadcast.js';
 
 /**
  * Sepolia testnet Uniswap V3 swap integration tests.
@@ -46,9 +47,9 @@ const SIGNER_REGION = process.env.SIGNER_REGION ?? 'ap-northeast-1';
 const SEPOLIA_RPC_URL =
   process.env.SEPOLIA_RPC_URL ?? 'https://ethereum-sepolia-rpc.publicnode.com';
 
-/** Minimum balance to run swap tests (0.005 ETH for wrap + approve + swap + gas) */
-const MIN_BALANCE_WEI = parseEther('0.005');
-const SWAP_AMOUNT = parseEther('0.001');
+/** Minimum balance to run swap tests (0.0001 ETH for wrap + approve + swap + gas headroom) */
+const MIN_BALANCE_WEI = parseEther('0.0001');
+const SWAP_AMOUNT = parseEther('0.00001');
 
 const describeWithTestnet = SIGNER_KEY_ID ? describe.sequential : describe.skip;
 
@@ -148,58 +149,6 @@ const exactInputSingleAbi = [
 // ============================================================================
 
 const ETHERSCAN_BASE = 'https://sepolia.etherscan.io/tx/';
-
-async function signAndBroadcast(
-  publicClient: PublicClient,
-  signer: SignerAdapter,
-  address: Address,
-  tx: { to: Address; data: `0x${string}`; value?: bigint },
-): Promise<{ txHash: `0x${string}`; blockNumber: bigint }> {
-  const nonce = await publicClient.getTransactionCount({
-    address,
-    blockTag: 'pending',
-  });
-
-  const fees = await publicClient.estimateFeesPerGas();
-  const gas = await publicClient.estimateGas({
-    account: address,
-    ...tx,
-  });
-
-  const signedTx = await signer.signTransaction({
-    chainId: sepolia.id,
-    type: 'eip1559',
-    nonce,
-    gas: gas + gas / 5n,
-    maxFeePerGas: fees.maxFeePerGas,
-    maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
-    ...tx,
-  });
-
-  let txHash: `0x${string}`;
-  try {
-    txHash = await publicClient.sendRawTransaction({
-      serializedTransaction: signedTx,
-    });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/already known/i.test(msg)) {
-      const { keccak256 } = await import('viem');
-      txHash = keccak256(signedTx);
-    } else {
-      throw err;
-    }
-  }
-
-  const receipt = await publicClient.waitForTransactionReceipt({
-    hash: txHash,
-    confirmations: 1,
-    timeout: 120_000,
-    pollingInterval: 4_000,
-  });
-
-  return { txHash, blockNumber: receipt.blockNumber };
-}
 
 // ============================================================================
 // Tests
@@ -338,7 +287,7 @@ describeWithTestnet('Sepolia Uniswap V3 Swap', () => {
     expect(wethBalance).toBeGreaterThanOrEqual(SWAP_AMOUNT);
 
     console.log(`  WETH wrap: ${ETHERSCAN_BASE}${result.txHash}`);
-  }, 120_000);
+  }, 240_000);
 
   // --------------------------------------------------------------------------
   // Step 2: Approve WETH for Uniswap V3 Router
@@ -363,7 +312,7 @@ describeWithTestnet('Sepolia Uniswap V3 Swap', () => {
     expect(result.blockNumber).toBeGreaterThan(0n);
 
     console.log(`  WETH approve: ${ETHERSCAN_BASE}${result.txHash}`);
-  }, 120_000);
+  }, 240_000);
 
   // --------------------------------------------------------------------------
   // Step 3: Swap WETH → USDC via exactInputSingle
@@ -398,7 +347,7 @@ describeWithTestnet('Sepolia Uniswap V3 Swap', () => {
     expect(result.blockNumber).toBeGreaterThan(0n);
 
     console.log(`  WETH→USDC swap: ${ETHERSCAN_BASE}${result.txHash}`);
-  }, 120_000);
+  }, 240_000);
 
   // --------------------------------------------------------------------------
   // Step 4: Verify USDC received

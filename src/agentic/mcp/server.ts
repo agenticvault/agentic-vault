@@ -19,6 +19,7 @@ export function createMcpServer(options: McpServerOptions): McpServer {
     policyEngine: options.policyEngine,
     auditLogger: options.auditLogger,
     dispatcher: options.dispatcher ?? new ProtocolDispatcher(createDefaultRegistry()),
+    rpcProvider: options.rpcProvider,
   };
 
   registerTools(server, ctx, { unsafeRawSign: options.unsafeRawSign });

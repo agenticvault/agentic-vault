@@ -1,6 +1,6 @@
 {
   "name": "@agenticvault/openclaw",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenClaw plugin for Agentic Vault — expose EVM signing as OpenClaw agent tools",
   "type": "module",
   "main": "./dist/index.js",
@@ -43,7 +43,7 @@
     "ai-agent"
   ],
   "peerDependencies": {
-    "@agenticvault/agentic-vault": "~0.1.0"
+    "@agenticvault/agentic-vault": "~0.1.1"
   },
   "devDependencies": {
     "@agenticvault/agentic-vault": "workspace:*",

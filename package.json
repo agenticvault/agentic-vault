@@ -1,6 +1,6 @@
 {
   "name": "@agenticvault/agentic-vault",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Server-side EVM signing with AWS KMS and built-in DeFi protocol awareness. Expose your wallet to AI agents via MCP, CLI, or OpenClaw.",
   "type": "module",
   "main": "./dist/index.js",

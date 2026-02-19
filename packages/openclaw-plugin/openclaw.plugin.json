@@ -2,13 +2,38 @@
   "name": "agentic-vault",
   "displayName": "Agentic Vault",
   "description": "Server-side EVM signing with AWS KMS — sign DeFi transactions, permits, and more",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "configSchema": {
-    "keyId": { "type": "string", "required": true, "description": "AWS KMS key ID or alias" },
-    "region": { "type": "string", "required": true, "description": "AWS region" },
-    "expectedAddress": { "type": "string", "required": false, "description": "Expected signer address for verification" },
-    "policyConfigPath": { "type": "string", "required": false, "description": "Path to policy configuration JSON file" },
-    "enableUnsafeRawSign": { "type": "boolean", "required": false, "default": false, "description": "Enable raw transaction and typed data signing tools (unsafe)" },
-    "rpcUrl": { "type": "string", "required": false, "description": "JSON-RPC endpoint URL for on-chain reads and broadcasts" }
+    "keyId": {
+      "type": "string",
+      "required": true,
+      "description": "AWS KMS key ID or alias"
+    },
+    "region": {
+      "type": "string",
+      "required": true,
+      "description": "AWS region"
+    },
+    "expectedAddress": {
+      "type": "string",
+      "required": false,
+      "description": "Expected signer address for verification"
+    },
+    "policyConfigPath": {
+      "type": "string",
+      "required": false,
+      "description": "Path to policy configuration JSON file"
+    },
+    "enableUnsafeRawSign": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Enable raw transaction and typed data signing tools (unsafe)"
+    },
+    "rpcUrl": {
+      "type": "string",
+      "required": false,
+      "description": "JSON-RPC endpoint URL for on-chain reads and broadcasts"
+    }
   }
 }

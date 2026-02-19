@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { type OpenClawPluginApi, type OpenClawToolConfig, type OpenClawToolHandler } from '../../src/types.js';
+import { type OpenClawPluginConfig } from '../../src/types.js';
 
 // Mock the host package (same pattern as unit tests)
 vi.mock('@agenticvault/agentic-vault', () => {
@@ -49,16 +49,17 @@ vi.mock('@agenticvault/agentic-vault/protocols', () => {
 
 // Helper
 interface RegisteredTool {
-  config: OpenClawToolConfig;
-  handler: OpenClawToolHandler;
+  tool: { name: string; execute: (toolCallId: string, params: Record<string, unknown>) => Promise<unknown> };
+  opts?: { optional?: boolean };
 }
 
-function createMockApi(): OpenClawPluginApi & { tools: Map<string, RegisteredTool> } {
+function createMockApi(config?: OpenClawPluginConfig) {
   const tools = new Map<string, RegisteredTool>();
   return {
+    pluginConfig: config as Record<string, unknown> | undefined,
     tools,
-    registerTool(name: string, config: OpenClawToolConfig, handler: OpenClawToolHandler) {
-      tools.set(name, { config, handler });
+    registerTool(tool: RegisteredTool['tool'], opts?: RegisteredTool['opts']) {
+      tools.set(tool.name, { tool, opts });
     },
   };
 }
@@ -69,10 +70,10 @@ describe('plugin-load integration', () => {
   });
 
   it('should register 7 safe tools via full entry point', async () => {
-    const { register } = await import('../../src/index.js');
-    const api = createMockApi();
+    const mod = await import('../../src/index.js');
+    const api = createMockApi({ keyId: 'test-key', region: 'us-east-1' });
 
-    register(api, { keyId: 'test-key', region: 'us-east-1' });
+    mod.default(api as never);
 
     expect(api.tools.size).toBe(7);
     expect(api.tools.has('vault_get_address')).toBe(true);
@@ -85,10 +86,10 @@ describe('plugin-load integration', () => {
   });
 
   it('should register 9 tools when enableUnsafeRawSign is true', async () => {
-    const { register } = await import('../../src/index.js');
-    const api = createMockApi();
+    const mod = await import('../../src/index.js');
+    const api = createMockApi({ keyId: 'test-key', region: 'us-east-1', enableUnsafeRawSign: true });
 
-    register(api, { keyId: 'test-key', region: 'us-east-1', enableUnsafeRawSign: true });
+    mod.default(api as never);
 
     expect(api.tools.size).toBe(9);
     expect(api.tools.has('vault_sign_transaction')).toBe(true);
@@ -96,9 +97,18 @@ describe('plugin-load integration', () => {
   });
 
   it('should throw when keyId is empty', async () => {
-    const { register } = await import('../../src/index.js');
-    const api = createMockApi();
+    const mod = await import('../../src/index.js');
+    const api = createMockApi({ keyId: '', region: 'us-east-1' });
 
-    expect(() => register(api, { keyId: '', region: 'us-east-1' })).toThrow('keyId is required');
+    expect(() => mod.default(api as never)).toThrow('keyId is required');
+  });
+
+  it('should read config from api.pluginConfig', async () => {
+    const mod = await import('../../src/index.js');
+    const api = createMockApi({ keyId: 'test-key', region: 'ap-northeast-1' });
+
+    mod.default(api as never);
+
+    expect(api.tools.size).toBe(7);
   });
 });

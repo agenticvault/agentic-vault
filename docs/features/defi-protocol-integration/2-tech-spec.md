@@ -169,7 +169,7 @@ src/cli/                          # Layer 3: CLI interface adapter [Phase 6b+7]
 | `src/protocols/**` | `viem`, internal protocol modules, `src/core/**` (direct) | `@modelcontextprotocol/*`, `src/agentic/**` |
 | `src/agentic/**` | `src/index.js` (root) + `src/protocols/index.js` (via relative path) | Direct `src/core/**`, `src/providers/**` |
 | `src/core/**` | `viem`, internal core modules | `src/agentic/**`, `src/protocols/**` |
-| `@agenticvault/openclaw` [Phase 8] | `@agenticvault/agentic-vault` (root) + `@agenticvault/agentic-vault/protocols` | Internal `src/` paths, `@modelcontextprotocol/*` |
+| `@agenticvault/openclaw` [Phase 8] | `@agenticvault/agentic-vault` (root) + `@agenticvault/agentic-vault/protocols` + `openclaw/plugin-sdk` | Internal `src/` paths, `@modelcontextprotocol/*` |
 
 The trust boundary test (`test/unit/agentic/trust-boundary.test.ts`) resolves each relative import path and checks against two allowed targets:
 
@@ -1049,13 +1049,15 @@ sequenceDiagram
 | `src/protocols/catalog.ts` (Aave actions) | `test/unit/protocols/catalog.test.ts` | ✅ |
 | Integration: Sepolia DeFi flow | `test/integration/sepolia-defi-flow.test.ts` | ✅ |
 
-### Test Files (OpenClaw Plugin — Phase 8 ✅)
+### Test Files (OpenClaw Plugin — Phase 8 ✅ → 8.5 SDK Alignment ✅)
 
 | Source | Test | Status |
 | --- | --- | --- |
-| `packages/openclaw-plugin/src/tools.ts` | `packages/openclaw-plugin/test/tools.test.ts` | ✅ |
-| `packages/openclaw-plugin/src/context.ts` | `packages/openclaw-plugin/test/context.test.ts` | ✅ |
-| Trust boundary (OpenClaw) | `packages/openclaw-plugin/test/trust-boundary.test.ts` | ✅ |
+| `packages/openclaw-plugin/src/tools.ts` | `packages/openclaw-plugin/test/unit/tools.test.ts` | ✅ |
+| `packages/openclaw-plugin/src/context.ts` | `packages/openclaw-plugin/test/unit/context.test.ts` | ✅ |
+| Trust boundary (OpenClaw) | `packages/openclaw-plugin/test/unit/trust-boundary.test.ts` | ✅ |
+| Plugin load (integration) | `packages/openclaw-plugin/test/integration/plugin-load.test.ts` | ✅ |
+| Tool pipeline (integration) | `packages/openclaw-plugin/test/integration/tool-pipeline.test.ts` | ✅ |
 
 ### Test Coverage Requirements
 
@@ -1089,11 +1091,13 @@ sequenceDiagram
 | **Phase 7c** CLI: stdin support | `--data -` reads from stdin correctly |
 | **Phase 7d** CLI: permit --file | Auto-extraction from JSON with validation |
 | **Phase 7e** CLI: TTY confirmation | Interactive confirm in TTY, auto-skip in non-TTY, `--yes` override |
-| **Phase 8** OpenClaw: tool registration | 4 safe tools registered via `api.registerTool()`, 2 dual-gated (`{ optional: true }` + `enableUnsafeRawSign` config flag) |
+| **Phase 8** OpenClaw: tool registration | 7 safe tools + 2 dual-gated registered via `api.registerTool(AgentTool, opts?)` (SDK format with `label`, JSON Schema `parameters`, `execute(toolCallId, params)`) |
 | **Phase 8** OpenClaw: context builder | Config → WorkflowContext with `caller: 'openclaw'` |
-| **Phase 8** OpenClaw: workflow delegation | Each tool calls correct workflow, returns `{ content }` format |
+| **Phase 8** OpenClaw: workflow delegation | Each tool calls correct workflow, returns `{ content, details }` format |
 | **Phase 8** OpenClaw: deny-all default | No policy config → all sign operations denied |
 | **Phase 8** OpenClaw: caller tag | AuditSink receives `caller: 'openclaw'` for all OpenClaw-originated operations |
+| **Phase 8.5** OpenClaw: SDK alignment | Types from `openclaw/plugin-sdk`, default export, `api.pluginConfig` config access |
+| **Phase 8.5** OpenClaw: label + parameters | Every tool has `label` field, parameters use JSON Schema `{ type: 'object', properties, required }` |
 | **Phase 4** Aave V3: decoder | supply/borrow/repay/withdraw decode correctly |
 | **Phase 4** Aave V3: evaluator | Asset allowlist, interest rate mode, recipient validation |
 | **Phase 4** Aave V3: Sepolia E2E | Wrap → Swap → Aave Supply full flow with KMS signing |
@@ -1306,10 +1310,11 @@ agentic-vault sign --chain-id 1 --to 0x... --data 0x...
 agentic-vault sign --yes --chain-id 1 ...
 ```
 
-### 4.10 OpenClaw Plugin [Phase 8 ✅]
+### 4.10 OpenClaw Plugin [Phase 8 ✅ → Phase 8.5: SDK Alignment ✅]
 
 > 來源：產品推廣需求 brainstorming（Claude + Codex Nash Equilibrium，2026-02-13）
 > ADR-001 Decision 4 修訂：Phase 1 blanket defer → Phase 1.5 controlled launch
+> **Phase 8.5 (2026-02-19)**: 從自定義 API 遷移至官方 `openclaw/plugin-sdk` contract
 
 OpenClaw plugin 作為獨立 npm 套件（`@agenticvault/openclaw`），直接 import workflow layer，不透過 subprocess 或 MCP bridge。
 
@@ -1320,6 +1325,7 @@ OpenClaw Gateway
   └── @agenticvault/openclaw (thin adapter)
         ├── import { signDefiCall, signPermit, ... } from '@agenticvault/agentic-vault/protocols'
         ├── import { createSigningProvider, EvmSignerAdapter } from '@agenticvault/agentic-vault'
+        ├── import type { OpenClawPluginApi } from 'openclaw/plugin-sdk'
         └── WorkflowContext { signer, policyEngine, auditSink, caller: 'openclaw' }
 ```
 
@@ -1331,70 +1337,136 @@ packages/openclaw-plugin/
 ├── package.json              # @agenticvault/openclaw
 ├── tsconfig.json
 ├── src/
-│   ├── index.ts              # register(api) entry — OpenClaw plugin lifecycle
-│   ├── tools.ts              # Tool definitions → workflow calls
+│   ├── index.ts              # export default function(api) — OpenClaw plugin lifecycle
+│   ├── types.ts              # Re-export SDK types + OpenClawPluginConfig
+│   ├── tools.ts              # Tool definitions → workflow calls (AgentTool format)
 │   └── context.ts            # OpenClaw config → WorkflowContext builder
-├── openclaw.plugin.json      # OpenClaw manifest (catalog + configSchema)
+├── openclaw.plugin.json      # OpenClaw manifest (id + JSON Schema configSchema)
 └── test/
-    ├── tools.test.ts
-    ├── context.test.ts
-    └── trust-boundary.test.ts
+    ├── unit/
+    │   ├── tools.test.ts
+    │   ├── context.test.ts
+    │   └── trust-boundary.test.ts
+    └── integration/
+        ├── plugin-load.test.ts
+        └── tool-pipeline.test.ts
 ```
 
-#### Plugin Entry
+#### Plugin Entry (SDK-aligned)
 
 ```typescript
 // packages/openclaw-plugin/src/index.ts
-import { registerVaultTools } from './tools.js';
+import { type OpenClawPluginApi, type OpenClawPluginConfig } from './types.js';
+import { buildContext } from './context.js';
+import { registerTools } from './tools.js';
 
-export default function register(api: OpenClawPluginAPI): void {
-  registerVaultTools(api);
+export default function (api: OpenClawPluginApi): void {
+  const config = (api.pluginConfig ?? {}) as unknown as OpenClawPluginConfig;
+  const ctx = buildContext(config);
+  registerTools(api, ctx, config);
 }
+```
+
+#### Types (SDK re-exports)
+
+```typescript
+// packages/openclaw-plugin/src/types.ts
+export type { OpenClawPluginApi, AnyAgentTool } from 'openclaw/plugin-sdk';
+
+export interface OpenClawPluginConfig {
+  keyId: string;
+  region: string;
+  expectedAddress?: string;
+  policyConfigPath?: string;
+  enableUnsafeRawSign?: boolean;
+  rpcUrl?: string;
+}
+```
+
+#### Tool Registration (AgentTool format)
+
+每個 tool 使用官方 `AgentTool` 物件格式，包含 `label` 和 JSON Schema `parameters`：
+
+```typescript
+// 範例：vault_get_address
+api.registerTool({
+  name: 'vault_get_address',
+  label: 'Get Vault Address',
+  description: 'Get the wallet address managed by this vault',
+  parameters: { type: 'object', properties: {}, required: [] },
+  async execute(_toolCallId: string, _params: Record<string, unknown>) {
+    const result = await getAddressWorkflow(ctx);
+    return toResult(result);
+  },
+} as AnyAgentTool);
+
+// 雙重保護工具使用第二參數 { optional: true }
+api.registerTool({ name: 'vault_sign_transaction', ... } as AnyAgentTool, { optional: true });
 ```
 
 #### Tool Mapping
 
-| OpenClaw Tool | Workflow | Optional |
-| --- | --- | --- |
-| `vault_get_address` | `getAddressWorkflow(ctx)` | No |
-| `vault_health_check` | `healthCheckWorkflow(ctx)` | No |
-| `vault_sign_defi_call` | `signDefiCall(ctx, 'vault_sign_defi_call', input)` | No |
-| `vault_sign_permit` | `signPermit(ctx, input)` | No |
-| `vault_sign_transaction` | `signer.signTransaction(tx)` | Yes (`{ optional: true }`) |
-| `vault_sign_typed_data` | `signer.signTypedData(params)` | Yes (`{ optional: true }`) |
+| OpenClaw Tool | Workflow | Optional | rpcUrl |
+| --- | --- | --- | --- |
+| `vault_get_address` | `getAddressWorkflow(ctx)` | No | No |
+| `vault_health_check` | `healthCheckWorkflow(ctx)` | No | No |
+| `vault_sign_defi_call` | `signDefiCall(ctx, 'vault_sign_defi_call', input)` | No | No |
+| `vault_sign_permit` | `signPermit(ctx, input)` | No | No |
+| `vault_get_balance` | `getBalanceWorkflow(ctx, input)` | No | Yes |
+| `vault_send_transfer` | `sendTransfer(ctx, input)` | No | Yes |
+| `vault_send_erc20_transfer` | `sendErc20Transfer(ctx, input)` | No | Yes |
+| `vault_sign_transaction` | `signer.signTransaction(tx)` | Yes (`{ optional: true }`) | No |
+| `vault_sign_typed_data` | `signer.signTypedData(params)` | Yes (`{ optional: true }`) | No |
 
-#### Config Schema
+#### Package Config (gateway discovery)
 
 ```json
+// package.json (relevant fields)
 {
-  "openclaw": {
-    "extensions": ["./dist/index.js"],
-    "slots": ["tool"],
-    "configSchema": {
-      "type": "object",
-      "properties": {
-        "keyId": { "type": "string", "description": "AWS KMS key ARN or alias" },
-        "region": { "type": "string", "description": "AWS region" },
-        "expectedAddress": { "type": "string" },
-        "policyConfigPath": { "type": "string" }
-      },
-      "required": ["keyId", "region"]
-    }
+  "openclaw": { "extensions": ["./dist/index.js"] },
+  "peerDependencies": {
+    "@agenticvault/agentic-vault": "~0.1.1",
+    "openclaw": ">=2026.1.0"
   }
 }
 ```
 
-User configures in `openclaw.json`:
+#### Plugin Manifest
+
+```json
+// openclaw.plugin.json
+{
+  "id": "agentic-vault",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "keyId": { "type": "string", "description": "AWS KMS key ID or alias" },
+      "region": { "type": "string", "description": "AWS region" },
+      "expectedAddress": { "type": "string", "description": "Expected signer address" },
+      "policyConfigPath": { "type": "string", "description": "Path to policy JSON file" },
+      "enableUnsafeRawSign": { "type": "boolean", "description": "Enable raw signing tools" },
+      "rpcUrl": { "type": "string", "description": "JSON-RPC endpoint URL" }
+    },
+    "required": ["keyId", "region"]
+  }
+}
+```
+
+User configures in OpenClaw config:
 ```json5
 {
   "plugins": {
+    "load": {
+      "paths": ["/absolute/path/to/node_modules/@agenticvault/openclaw"]
+    },
     "entries": {
       "agentic-vault": {
         "enabled": true,
         "config": {
           "keyId": "arn:aws:kms:us-east-1:123:key/xxx",
           "region": "us-east-1",
-          "policyConfigPath": "~/.openclaw/vault-policy.json"
+          "policyConfigPath": "~/.openclaw/vault-policy.json",
+          "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
         }
       }
     }
@@ -1404,6 +1476,16 @@ User configures in `openclaw.json`:
 
 AWS credentials via host's default credential chain（與 CLI/MCP 一致）。
 
+#### Installation Paths
+
+> **已知限制 (2026-02-19)**: OpenClaw installer 使用 scope-strip 推導 plugin ID（`@agenticvault/openclaw` → `openclaw`），與 manifest `id: "agentic-vault"` 不一致。目前建議使用 `plugins.load.paths`。
+
+| Path | 適用場景 | 狀態 |
+| --- | --- | --- |
+| `plugins.load.paths` + `plugins.entries.agentic-vault` | 本地開發、VM 部署 | ✅ 可用 |
+| `openclaw plugins install @agenticvault/openclaw` | npm 安裝 | ⚠️ 需手動修正 config key |
+| `openclaw plugins install --link ./path` | 本地連結 | ⚠️ 需手動修正 config key |
+
 #### Security Controls
 
 | Control | Implementation |
@@ -1411,27 +1493,31 @@ AWS credentials via host's default credential chain（與 CLI/MCP 一致）。
 | Policy engine 強制啟用 | 無 policy config → deny-all default |
 | 高風險工具雙重保護 | `vault_sign_transaction`/`vault_sign_typed_data`：`{ optional: true }` + 需 config `enableUnsafeRawSign: true`（與 CLI `--unsafe-raw-sign` 對齊） |
 | HSM boundary | Private key never leaves KMS — workflow layer 不接觸私鑰 |
-| Audit trail | `caller: 'openclaw'` 標記所有審計日誌（需擴展 `WorkflowCaller` type） |
+| Audit trail | `caller: 'openclaw'` 標記所有審計日誌 |
 | npm provenance | Trusted Publishers (OIDC) + `--provenance` |
 | 版本固定 | 文件指引使用者固定 exact version + 禁止 auto-install |
 
-### 4.11 OpenClaw Sequence Diagram [Phase 8 ✅]
+### 4.11 OpenClaw Sequence Diagram [Phase 8 ✅ → 8.5 SDK Alignment ✅]
 
 ```mermaid
 sequenceDiagram
-    participant OC as OpenClaw Agent
-    participant Plugin as agentic-vault-openclaw
+    participant OC as OpenClaw Gateway
+    participant Plugin as @agenticvault/openclaw
     participant WF as signDefiCall workflow
     participant KMS as AWS KMS (HSM)
 
-    OC->>Plugin: vault_sign_defi_call({ chainId, to, data })
-    Plugin->>Plugin: Build WorkflowContext(caller='openclaw')
+    Note over OC,Plugin: Gateway discovers plugin via<br/>package.json "openclaw.extensions"<br/>+ openclaw.plugin.json "id: agentic-vault"
+    OC->>Plugin: export default function(api)
+    Plugin->>Plugin: Read api.pluginConfig → buildContext(config)
+    Plugin->>Plugin: registerTools(api, ctx, config) — 7+2 AgentTool objects
+
+    OC->>Plugin: vault_sign_defi_call.execute(toolCallId, { chainId, to, data })
     Plugin->>WF: signDefiCall(ctx, args)
     WF->>WF: Decode → Policy → Sign
     WF->>KMS: signTransaction (via SigningProvider)
     KMS-->>WF: signedTx
     WF-->>Plugin: WorkflowResult
-    Plugin-->>OC: { content: [{ type: 'text', text: signedTx }] }
+    Plugin-->>OC: { content: [{ type: 'text', text: signedTx }], details: undefined }
 ```
 
 ### Backward Compatibility
@@ -1457,22 +1543,23 @@ sequenceDiagram
 
 1. 新增 `pnpm-workspace.yaml`（`packages: ['packages/*']`）
 2. 建立 `packages/openclaw-plugin/` 獨立套件（`@agenticvault/openclaw`）
-3. `peerDependencies: { "@agenticvault/agentic-vault": "^0.1.0" }`
-4. 僅 import `@agenticvault/agentic-vault` + `@agenticvault/agentic-vault/protocols` public API
+3. `peerDependencies: { "@agenticvault/agentic-vault": "~0.1.1", "openclaw": ">=2026.1.0" }`
+4. 僅 import `@agenticvault/agentic-vault` + `@agenticvault/agentic-vault/protocols` + `openclaw/plugin-sdk` public API
 5. Trust boundary test 驗證 import 限制
 
 #### 8b. Tool Registration ✅
 
-1. 實作 4 safe tools: `vault_get_address`, `vault_health_check`, `vault_sign_defi_call`, `vault_sign_permit`
+1. 實作 7 safe tools: `vault_get_address`, `vault_health_check`, `vault_sign_defi_call`, `vault_sign_permit`, `vault_get_balance`, `vault_send_transfer`, `vault_send_erc20_transfer`
 2. 高風險工具雙重保護：`{ optional: true }` + `enableUnsafeRawSign` config flag（與 CLI `--unsafe-raw-sign` 對齊）
 3. OpenClaw config schema 驗證 `keyId`, `region` 必填
+4. 每個 tool 使用 `AgentTool` 格式（`label` + JSON Schema `parameters` + `execute(toolCallId, params)`）
 
 #### 8c. Context Builder ✅
 
 1. OpenClaw plugin config → `WorkflowContext` 轉換
 2. 擴展 `WorkflowCaller` type 加入 `'openclaw'`
 3. `caller: 'openclaw'` 審計標記
-4. Signer + PolicyEngine lazy singleton（每個 process 僅初始化一次）+ config mismatch 偵測
+4. Signer + PolicyEngine factory pattern（每次 `buildContext()` 建立新 instance，caller 自行 cache）
 5. AWS credentials via host default chain（不寫入 plugin config）
 
 #### 8d. ADR-001 更新 ✅
@@ -1487,6 +1574,22 @@ sequenceDiagram
 2. 新增 `.github/workflows/release-openclaw.yml`（tag 觸發 npm publish + provenance）
 3. npm Trusted Publishers (OIDC) 設定
 4. 發布後提交至 OpenClaw 官方 extension 生態系
+
+#### 8.5. OpenClaw SDK Alignment ✅
+
+> 來源：OpenClaw Plugin SDK 對齊 brainstorming（Claude + Codex Nash Equilibrium，2026-02-19，Codex thread: `019c75ca-db6e-7450-a2d5-f69a941a511d`）
+
+1. 入口點從 `export function register(api, config)` 遷移至 `export default function(api)`
+2. Config 從第二參數改為 `api.pluginConfig`
+3. 自定義 types 替換為 `openclaw/plugin-sdk` SDK types（`OpenClawPluginApi`, `AnyAgentTool`）
+4. Tool 註冊從 3-arg `registerTool(name, config, handler)` 遷移至單物件 `registerTool(AgentTool, opts?)`
+5. 每個 tool 新增 `label` 欄位、`execute(toolCallId, params)` 簽名
+6. Parameters 從 flat `{ required: true }` 遷移至 JSON Schema `{ type: 'object', properties, required }`
+7. `openclaw.plugin.json` 從 `name` 改為 `id`，configSchema 改為 JSON Schema
+8. `package.json` 新增 `openclaw` peer dep、`"openclaw": { "extensions": [...] }` 欄位
+9. Trust boundary 新增 `openclaw/plugin-sdk` 為允許的 import 來源
+
+**已知限制**: OpenClaw installer 使用 `unscopedPackageName`（`openclaw`）推導 plugin ID，與 manifest `id: "agentic-vault"` 不一致。目前建議使用 `plugins.load.paths` 安裝。詳見 brainstorm 記錄。
 
 ### Phase 9: Onboarding Improvements
 

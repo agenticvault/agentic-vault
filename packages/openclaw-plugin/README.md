@@ -6,24 +6,56 @@ OpenClaw plugin for [Agentic Vault](https://github.com/agenticvault/agentic-vaul
 
 ## Installation
 
+### Via OpenClaw Host Config (Recommended)
+
+Install the package and its peer dependency, then register it in your OpenClaw host config:
+
 ```bash
-npm install @agenticvault/openclaw @agenticvault/agentic-vault
+npm install @agenticvault/openclaw openclaw
 ```
 
-## Configuration
+### Via `plugins.load.paths` (Manual)
 
-Register the plugin in your OpenClaw agent configuration:
+If you prefer explicit control over plugin loading, install the package to a local directory and point OpenClaw to it:
+
+```bash
+# Install to a local directory
+mkdir -p ./openclaw-plugins
+cd ./openclaw-plugins
+npm install @agenticvault/openclaw
+```
+
+Then add the path to your OpenClaw host config:
 
 ```json
 {
   "plugins": {
-    "agentic-vault": {
-      "package": "@agenticvault/openclaw",
-      "config": {
-        "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
-        "region": "us-east-1",
-        "policyConfigPath": "./policy.json",
-        "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
+    "load": {
+      "paths": ["./openclaw-plugins/node_modules/@agenticvault/openclaw"]
+    }
+  }
+}
+```
+
+> **Tip**: Pin the exact version in production (`npm install @agenticvault/openclaw@0.1.1`) to avoid unexpected upgrades.
+
+> **Known limitation**: `openclaw plugins install @agenticvault/openclaw` may encounter an installer ID mismatch. Use one of the methods above until this is resolved upstream.
+
+## Configuration
+
+Register the plugin in your OpenClaw host configuration. The entries key must match the manifest `id` (`"agentic-vault"`):
+
+```json
+{
+  "plugins": {
+    "entries": {
+      "agentic-vault": {
+        "config": {
+          "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
+          "region": "us-east-1",
+          "policyConfigPath": "./policy.json",
+          "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
+        }
       }
     }
   }
@@ -59,6 +91,18 @@ Register the plugin in your OpenClaw agent configuration:
 |------|-------------|
 | `vault_sign_transaction` | Sign a raw EVM transaction (bypasses decoder pipeline) |
 | `vault_sign_typed_data` | Sign raw EIP-712 typed data (bypasses decoder pipeline) |
+
+## Migration from Pre-Release API
+
+The plugin entry point changed from the pre-release `register(api, config)` to the official SDK contract `export default function(api)`:
+
+| Before (pre-release) | After (current) |
+|----------------------|-----------------|
+| `import { register } from "@agenticvault/openclaw"` | `export default function(api)` |
+| `register(api, config)` | Config read from `api.pluginConfig` |
+| `api.registerTool(name, config, handler)` | `api.registerTool({ name, description, parameters, label, execute })` |
+
+The plugin now uses the official `openclaw/plugin-sdk` types and can be discovered by the OpenClaw gateway via the `openclaw` field in `package.json`.
 
 ## Security
 

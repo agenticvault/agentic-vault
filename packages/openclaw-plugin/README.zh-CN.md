@@ -1,4 +1,4 @@
-<!-- Source: packages/openclaw-plugin/README.md | Commit: 9d69f83 | Last synced: 2026-02-17 -->
+<!-- Source: packages/openclaw-plugin/README.md | Last synced: 2026-02-19 -->
 
 # @agenticvault/openclaw
 
@@ -8,24 +8,56 @@
 
 ## 安装
 
+### 通过 OpenClaw 主机配置（推荐）
+
+安装包及其 peer dependency，然后在 OpenClaw 主机配置中注册：
+
 ```bash
-npm install @agenticvault/openclaw @agenticvault/agentic-vault
+npm install @agenticvault/openclaw openclaw
 ```
 
-## 配置
+### 通过 `plugins.load.paths`（手动）
 
-在 OpenClaw 代理配置中注册插件：
+如果偏好显式控制插件加载，可将包安装到本地目录，再将路径指定给 OpenClaw：
+
+```bash
+# 安装到本地目录
+mkdir -p ./openclaw-plugins
+cd ./openclaw-plugins
+npm install @agenticvault/openclaw
+```
+
+然后在 OpenClaw 主机配置中添加路径：
 
 ```json
 {
   "plugins": {
-    "agentic-vault": {
-      "package": "@agenticvault/openclaw",
-      "config": {
-        "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
-        "region": "us-east-1",
-        "policyConfigPath": "./policy.json",
-        "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
+    "load": {
+      "paths": ["./openclaw-plugins/node_modules/@agenticvault/openclaw"]
+    }
+  }
+}
+```
+
+> **建议**：生产环境请固定版本（`npm install @agenticvault/openclaw@0.1.1`），避免意外升级。
+
+> **已知限制**：`openclaw plugins install @agenticvault/openclaw` 可能遇到 installer ID 不匹配的问题。在上游修复前，请使用上述方式安装。
+
+## 配置
+
+在 OpenClaw 主机配置中注册插件。entries key 必须与 manifest `id`（`"agentic-vault"`）一致：
+
+```json
+{
+  "plugins": {
+    "entries": {
+      "agentic-vault": {
+        "config": {
+          "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
+          "region": "us-east-1",
+          "policyConfigPath": "./policy.json",
+          "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
+        }
       }
     }
   }
@@ -61,6 +93,18 @@ npm install @agenticvault/openclaw @agenticvault/agentic-vault
 |------|------|
 | `vault_sign_transaction` | 签署原始 EVM 交易（绕过解码管线） |
 | `vault_sign_typed_data` | 签署原始 EIP-712 类型化数据（绕过解码管线） |
+
+## 从预发布 API 迁移
+
+插件入口点从预发布的 `register(api, config)` 变更为官方 SDK 合约 `export default function(api)`：
+
+| 之前（预发布） | 之后（当前） |
+|----------------|-------------|
+| `import { register } from "@agenticvault/openclaw"` | `export default function(api)` |
+| `register(api, config)` | 配置从 `api.pluginConfig` 读取 |
+| `api.registerTool(name, config, handler)` | `api.registerTool({ name, description, parameters, label, execute })` |
+
+插件现在使用官方 `openclaw/plugin-sdk` 类型，并可通过 `package.json` 中的 `openclaw` 字段被 OpenClaw 网关发现。
 
 ## 安全性
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { type OpenClawPluginApi, type OpenClawPluginConfig, type OpenClawToolConfig, type OpenClawToolHandler, type OpenClawToolResult } from '../../src/types.js';
+import { type OpenClawPluginConfig } from '../../src/types.js';
 import { type WorkflowContext } from '@agenticvault/agentic-vault/protocols';
 
 // ============================================================================
@@ -21,16 +21,17 @@ vi.mock('@agenticvault/agentic-vault/protocols', () => ({
 // ============================================================================
 
 interface RegisteredTool {
-  config: OpenClawToolConfig;
-  handler: OpenClawToolHandler;
+  tool: { name: string; description: string; label: string; parameters: unknown; execute: (toolCallId: string, params: Record<string, unknown>) => Promise<{ content: { type: 'text'; text: string }[]; details: undefined }> };
+  opts?: { optional?: boolean };
 }
 
-function createMockApi(): OpenClawPluginApi & { tools: Map<string, RegisteredTool> } {
+function createMockApi() {
   const tools = new Map<string, RegisteredTool>();
   return {
+    pluginConfig: undefined as Record<string, unknown> | undefined,
     tools,
-    registerTool(name: string, config: OpenClawToolConfig, handler: OpenClawToolHandler) {
-      tools.set(name, { config, handler });
+    registerTool(tool: RegisteredTool['tool'], opts?: RegisteredTool['opts']) {
+      tools.set(tool.name, { tool, opts });
     },
   };
 }
@@ -90,7 +91,7 @@ describe('registerTools', () => {
   describe('tool registration', () => {
     it('should register 7 safe tools when enableUnsafeRawSign is false', async () => {
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
       expect(api.tools.size).toBe(7);
       expect(api.tools.has('vault_get_address')).toBe(true);
@@ -104,7 +105,7 @@ describe('registerTools', () => {
 
     it('should register 9 tools when enableUnsafeRawSign is true', async () => {
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, UNSAFE_CONFIG);
+      registerTools(api as never, ctx, UNSAFE_CONFIG);
 
       expect(api.tools.size).toBe(9);
       expect(api.tools.has('vault_sign_transaction')).toBe(true);
@@ -113,7 +114,7 @@ describe('registerTools', () => {
 
     it('should NOT register dual-gated tools without enableUnsafeRawSign', async () => {
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
       expect(api.tools.has('vault_sign_transaction')).toBe(false);
       expect(api.tools.has('vault_sign_typed_data')).toBe(false);
@@ -121,18 +122,40 @@ describe('registerTools', () => {
 
     it('should mark dual-gated tools as optional', async () => {
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, UNSAFE_CONFIG);
+      registerTools(api as never, ctx, UNSAFE_CONFIG);
 
-      expect(api.tools.get('vault_sign_transaction')!.config.optional).toBe(true);
-      expect(api.tools.get('vault_sign_typed_data')!.config.optional).toBe(true);
+      expect(api.tools.get('vault_sign_transaction')!.opts?.optional).toBe(true);
+      expect(api.tools.get('vault_sign_typed_data')!.opts?.optional).toBe(true);
     });
 
     it('should NOT mark safe tools as optional', async () => {
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
-      for (const [, tool] of api.tools) {
-        expect(tool.config.optional).toBeUndefined();
+      for (const [, entry] of api.tools) {
+        expect(entry.opts?.optional).toBeUndefined();
+      }
+    });
+
+    it('should include label on every tool', async () => {
+      const { registerTools } = await import('../../src/tools.js');
+      registerTools(api as never, ctx, UNSAFE_CONFIG);
+
+      for (const [, entry] of api.tools) {
+        expect(typeof entry.tool.label).toBe('string');
+        expect(entry.tool.label.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('should use JSON Schema object format for parameters', async () => {
+      const { registerTools } = await import('../../src/tools.js');
+      registerTools(api as never, ctx, SAFE_CONFIG);
+
+      for (const [, entry] of api.tools) {
+        const params = entry.tool.parameters as { type: string; properties: unknown; required: unknown[] };
+        expect(params.type).toBe('object');
+        expect(params.properties).toBeDefined();
+        expect(Array.isArray(params.required)).toBe(true);
       }
     });
   });
@@ -141,9 +164,9 @@ describe('registerTools', () => {
     it('should call getAddressWorkflow and return result', async () => {
       const { registerTools } = await import('../../src/tools.js');
       const { getAddressWorkflow } = await import('@agenticvault/agentic-vault/protocols');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
-      const result = await api.tools.get('vault_get_address')!.handler({});
+      const result = await api.tools.get('vault_get_address')!.tool.execute('test-id', {});
 
       expect(getAddressWorkflow).toHaveBeenCalledWith(ctx);
       expect(result.content[0].text).toBe('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
@@ -154,9 +177,9 @@ describe('registerTools', () => {
     it('should call healthCheckWorkflow and return result', async () => {
       const { registerTools } = await import('../../src/tools.js');
       const { healthCheckWorkflow } = await import('@agenticvault/agentic-vault/protocols');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
-      const result = await api.tools.get('vault_health_check')!.handler({});
+      const result = await api.tools.get('vault_health_check')!.tool.execute('test-id', {});
 
       expect(healthCheckWorkflow).toHaveBeenCalledWith(ctx);
       expect(result.content[0].text).toBe('{"status":"healthy"}');
@@ -167,14 +190,14 @@ describe('registerTools', () => {
     it('should call signDefiCall workflow with correct args', async () => {
       const { registerTools } = await import('../../src/tools.js');
       const { signDefiCall } = await import('@agenticvault/agentic-vault/protocols');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
       const args = {
         chainId: 1,
         to: '0x1234567890123456789012345678901234567890',
         data: '0x095ea7b3',
       };
-      const result = await api.tools.get('vault_sign_defi_call')!.handler(args);
+      const result = await api.tools.get('vault_sign_defi_call')!.tool.execute('test-id', args);
 
       expect(signDefiCall).toHaveBeenCalledWith(ctx, 'vault_sign_defi_call', {
         chainId: 1,
@@ -190,7 +213,7 @@ describe('registerTools', () => {
     it('should call signPermit workflow with correct args', async () => {
       const { registerTools } = await import('../../src/tools.js');
       const { signPermit } = await import('@agenticvault/agentic-vault/protocols');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
       const args = {
         chainId: 1,
@@ -202,7 +225,7 @@ describe('registerTools', () => {
         types: { Permit: [{ name: 'owner', type: 'address' }] },
         message: { owner: '0xabc', value: '1000000', spender: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45', deadline: 1700000000 },
       };
-      const result = await api.tools.get('vault_sign_permit')!.handler(args);
+      const result = await api.tools.get('vault_sign_permit')!.tool.execute('test-id', args);
 
       expect(signPermit).toHaveBeenCalledWith(ctx, {
         chainId: 1,
@@ -227,9 +250,9 @@ describe('registerTools', () => {
         violations: ['chain not allowed'],
       });
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
-      const result = await api.tools.get('vault_get_address')!.handler({});
+      const result = await api.tools.get('vault_get_address')!.tool.execute('test-id', {});
 
       expect(result.content[0].text).toBe('Policy denied: chain not allowed');
     });
@@ -241,9 +264,9 @@ describe('registerTools', () => {
         reason: 'Signer is required for health_check',
       });
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
-      const result = await api.tools.get('vault_health_check')!.handler({});
+      const result = await api.tools.get('vault_health_check')!.tool.execute('test-id', {});
 
       expect(result.content[0].text).toBe('Error: Signer is required for health_check');
     });
@@ -255,10 +278,10 @@ describe('registerTools', () => {
         details: { protocol: 'erc20', action: 'approve', chainId: 1, to: '0xabc' },
       });
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
       const args = { chainId: 1, to: '0xabc', data: '0x095ea7b3' };
-      const result = await api.tools.get('vault_sign_defi_call')!.handler(args);
+      const result = await api.tools.get('vault_sign_defi_call')!.tool.execute('test-id', args);
 
       const parsed = JSON.parse(result.content[0].text);
       expect(parsed.protocol).toBe('erc20');
@@ -269,14 +292,14 @@ describe('registerTools', () => {
   describe('vault_sign_transaction (dual-gated)', () => {
     it('should sign raw transaction and audit log', async () => {
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, UNSAFE_CONFIG);
+      registerTools(api as never, ctx, UNSAFE_CONFIG);
 
       const args = {
         chainId: 1,
         to: '0x1234567890123456789012345678901234567890',
         value: '1000000000000000000',
       };
-      const result = await api.tools.get('vault_sign_transaction')!.handler(args);
+      const result = await api.tools.get('vault_sign_transaction')!.tool.execute('test-id', args);
 
       expect(ctx.signer!.signTransaction).toHaveBeenCalled();
       expect(ctx.auditSink.log).toHaveBeenCalledWith(
@@ -299,10 +322,10 @@ describe('registerTools', () => {
         },
       });
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, errorCtx, UNSAFE_CONFIG);
+      registerTools(api as never, errorCtx, UNSAFE_CONFIG);
 
       const args = { chainId: 1, to: '0x1234567890123456789012345678901234567890' };
-      const result = await api.tools.get('vault_sign_transaction')!.handler(args);
+      const result = await api.tools.get('vault_sign_transaction')!.tool.execute('test-id', args);
 
       expect(result.content[0].text).toContain('Signing error: KMS unavailable');
       expect(errorCtx.auditSink.log).toHaveBeenCalledWith(
@@ -313,10 +336,10 @@ describe('registerTools', () => {
     it('should return error when signer is not available', async () => {
       const noSignerCtx = createMockContext({ signer: undefined });
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, noSignerCtx, UNSAFE_CONFIG);
+      registerTools(api as never, noSignerCtx, UNSAFE_CONFIG);
 
       const args = { chainId: 1, to: '0x1234567890123456789012345678901234567890' };
-      const result = await api.tools.get('vault_sign_transaction')!.handler(args);
+      const result = await api.tools.get('vault_sign_transaction')!.tool.execute('test-id', args);
 
       expect(result.content[0].text).toBe('Error: Signer is not available');
       expect(noSignerCtx.auditSink.log).toHaveBeenCalledWith(
@@ -328,7 +351,7 @@ describe('registerTools', () => {
   describe('vault_sign_typed_data (dual-gated)', () => {
     it('should sign typed data and audit log', async () => {
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, UNSAFE_CONFIG);
+      registerTools(api as never, ctx, UNSAFE_CONFIG);
 
       const args = {
         domain: { name: 'Test' },
@@ -336,7 +359,7 @@ describe('registerTools', () => {
         primaryType: 'Test',
         message: { val: 42 },
       };
-      const result = await api.tools.get('vault_sign_typed_data')!.handler(args);
+      const result = await api.tools.get('vault_sign_typed_data')!.tool.execute('test-id', args);
 
       expect(ctx.signer!.signTypedData).toHaveBeenCalledWith({
         domain: args.domain,
@@ -364,7 +387,7 @@ describe('registerTools', () => {
         },
       });
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, errorCtx, UNSAFE_CONFIG);
+      registerTools(api as never, errorCtx, UNSAFE_CONFIG);
 
       const args = {
         domain: {},
@@ -372,7 +395,7 @@ describe('registerTools', () => {
         primaryType: 'Test',
         message: {},
       };
-      const result = await api.tools.get('vault_sign_typed_data')!.handler(args);
+      const result = await api.tools.get('vault_sign_typed_data')!.tool.execute('test-id', args);
 
       expect(result.content[0].text).toContain('Signing error: Sign failed');
     });
@@ -382,10 +405,10 @@ describe('registerTools', () => {
     it('should call getBalanceWorkflow and return result', async () => {
       const { registerTools } = await import('../../src/tools.js');
       const { getBalanceWorkflow } = await import('@agenticvault/agentic-vault/protocols');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
       const args = { chainId: 1 };
-      const result = await api.tools.get('vault_get_balance')!.handler(args);
+      const result = await api.tools.get('vault_get_balance')!.tool.execute('test-id', args);
 
       expect(getBalanceWorkflow).toHaveBeenCalledWith(ctx, {
         chainId: 1,
@@ -401,14 +424,14 @@ describe('registerTools', () => {
     it('should call sendTransfer workflow with correct args', async () => {
       const { registerTools } = await import('../../src/tools.js');
       const { sendTransfer } = await import('@agenticvault/agentic-vault/protocols');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
       const args = {
         chainId: 1,
         to: '0x1234567890123456789012345678901234567890',
         value: '1000000000000000000',
       };
-      const result = await api.tools.get('vault_send_transfer')!.handler(args);
+      const result = await api.tools.get('vault_send_transfer')!.tool.execute('test-id', args);
 
       expect(sendTransfer).toHaveBeenCalledWith(ctx, {
         chainId: 1,
@@ -424,7 +447,7 @@ describe('registerTools', () => {
     it('should call sendErc20Transfer workflow with correct args', async () => {
       const { registerTools } = await import('../../src/tools.js');
       const { sendErc20Transfer } = await import('@agenticvault/agentic-vault/protocols');
-      registerTools(api, ctx, SAFE_CONFIG);
+      registerTools(api as never, ctx, SAFE_CONFIG);
 
       const args = {
         chainId: 1,
@@ -432,7 +455,7 @@ describe('registerTools', () => {
         to: '0x1234567890123456789012345678901234567890',
         amount: '1000000',
       };
-      const result = await api.tools.get('vault_send_erc20_transfer')!.handler(args);
+      const result = await api.tools.get('vault_send_erc20_transfer')!.tool.execute('test-id', args);
 
       expect(sendErc20Transfer).toHaveBeenCalledWith(ctx, {
         chainId: 1,
@@ -448,10 +471,10 @@ describe('registerTools', () => {
   describe('response format', () => {
     it('should return { content: [{ type: "text", text }] } for all tools', async () => {
       const { registerTools } = await import('../../src/tools.js');
-      registerTools(api, ctx, UNSAFE_CONFIG);
+      registerTools(api as never, ctx, UNSAFE_CONFIG);
 
-      for (const [, tool] of api.tools) {
-        const result: OpenClawToolResult = await tool.handler({
+      for (const [, entry] of api.tools) {
+        const result = await entry.tool.execute('test-id', {
           chainId: 1,
           to: '0x1234567890123456789012345678901234567890',
           data: '0x095ea7b3',

@@ -22,6 +22,7 @@ const SRC_DIR = resolve(import.meta.dirname, '../../src');
 const ALLOWED_IMPORT_PATTERNS = [
   /^['"]@agenticvault\/agentic-vault['"]/, // exact match: @agenticvault/agentic-vault
   /^['"]@agenticvault\/agentic-vault\/protocols['"]/, // exact match: protocols subpath
+  /^['"]openclaw\/plugin-sdk['"]/, // OpenClaw plugin SDK types
   /^['"]node:/, // Node.js built-in modules
   /^['"]\.\.?\//, // relative imports (./xxx or ../xxx)
 ];
@@ -97,10 +98,20 @@ describe('trust boundary', () => {
 
       const deepImports = sources.filter((src) => {
         const cleaned = src.replace(/^['"]|['"]$/g, '');
-        return (
+        if (
           cleaned.startsWith('@agenticvault/agentic-vault/') &&
           cleaned !== '@agenticvault/agentic-vault/protocols'
-        );
+        ) {
+          return true;
+        }
+        // openclaw/plugin-sdk is allowed; deeper subpaths are not
+        if (
+          cleaned.startsWith('openclaw/') &&
+          cleaned !== 'openclaw/plugin-sdk'
+        ) {
+          return true;
+        }
+        return false;
       });
 
       expect(

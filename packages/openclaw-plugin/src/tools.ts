@@ -11,16 +11,18 @@ import {
 } from '@agenticvault/agentic-vault/protocols';
 import {
   type OpenClawPluginApi,
+  type AnyAgentTool,
   type OpenClawPluginConfig,
-  type OpenClawToolResult,
 } from './types.js';
 
 // ─── Result Adapter ───
 
-function toResult(result: WorkflowResult): OpenClawToolResult {
+type ToolResult = { content: { type: 'text'; text: string }[]; details: undefined };
+
+function toResult(result: WorkflowResult): ToolResult {
   switch (result.status) {
     case 'approved':
-      return { content: [{ type: 'text', text: result.data }] };
+      return { content: [{ type: 'text', text: result.data }], details: undefined };
     case 'dry-run-approved': {
       const replacer = (_k: string, v: unknown) =>
         typeof v === 'bigint' ? v.toString() : v;
@@ -28,12 +30,13 @@ function toResult(result: WorkflowResult): OpenClawToolResult {
         content: [
           { type: 'text', text: JSON.stringify(result.details, replacer) },
         ],
+        details: undefined,
       };
     }
     case 'denied':
-      return { content: [{ type: 'text', text: result.reason }] };
+      return { content: [{ type: 'text', text: result.reason }], details: undefined };
     case 'error':
-      return { content: [{ type: 'text', text: `Error: ${result.reason}` }] };
+      return { content: [{ type: 'text', text: `Error: ${result.reason}` }], details: undefined };
   }
 }
 
@@ -43,157 +46,150 @@ function registerGetAddress(
   api: OpenClawPluginApi,
   ctx: WorkflowContext,
 ): void {
-  api.registerTool(
-    'vault_get_address',
-    {
-      description: 'Get the wallet address managed by this vault',
-    },
-    async () => {
+  api.registerTool({
+    name: 'vault_get_address',
+    label: 'Get Vault Address',
+    description: 'Get the wallet address managed by this vault',
+    parameters: { type: 'object', properties: {}, required: [] },
+    async execute(_toolCallId: string, _params: Record<string, unknown>) {
       const result = await getAddressWorkflow(ctx);
       return toResult(result);
     },
-  );
+  } as AnyAgentTool);
 }
 
 function registerHealthCheck(
   api: OpenClawPluginApi,
   ctx: WorkflowContext,
 ): void {
-  api.registerTool(
-    'vault_health_check',
-    {
-      description: 'Check the health status of the vault signer',
-    },
-    async () => {
+  api.registerTool({
+    name: 'vault_health_check',
+    label: 'Vault Health Check',
+    description: 'Check the health status of the vault signer',
+    parameters: { type: 'object', properties: {}, required: [] },
+    async execute(_toolCallId: string, _params: Record<string, unknown>) {
       const result = await healthCheckWorkflow(ctx);
       return toResult(result);
     },
-  );
+  } as AnyAgentTool);
 }
 
 function registerSignDefiCall(
   api: OpenClawPluginApi,
   ctx: WorkflowContext,
 ): void {
-  api.registerTool(
-    'vault_sign_defi_call',
-    {
-      description:
-        'Sign a DeFi contract interaction after calldata decoding and policy validation',
-      parameters: {
+  api.registerTool({
+    name: 'vault_sign_defi_call',
+    label: 'Sign DeFi Call',
+    description:
+      'Sign a DeFi contract interaction after calldata decoding and policy validation',
+    parameters: {
+      type: 'object',
+      properties: {
         chainId: {
           type: 'number',
           description: 'The chain ID for the transaction',
-          required: true,
         },
         to: {
           type: 'string',
           description: 'The target contract address (0x-prefixed)',
-          required: true,
         },
         data: {
           type: 'string',
           description: 'The calldata (hex-encoded, 0x-prefixed)',
-          required: true,
         },
         value: {
           type: 'string',
           description: 'The value in wei (decimal string)',
         },
       },
+      required: ['chainId', 'to', 'data'],
     },
-    async (args) => {
+    async execute(_toolCallId: string, params: Record<string, unknown>) {
       const result = await signDefiCall(ctx, 'vault_sign_defi_call', {
-        chainId: args.chainId as number,
-        to: args.to as string,
-        data: args.data as string,
-        value: args.value as string | undefined,
+        chainId: params.chainId as number,
+        to: params.to as string,
+        data: params.data as string,
+        value: params.value as string | undefined,
       });
       return toResult(result);
     },
-  );
+  } as AnyAgentTool);
 }
 
 function registerSignPermit(
   api: OpenClawPluginApi,
   ctx: WorkflowContext,
 ): void {
-  api.registerTool(
-    'vault_sign_permit',
-    {
-      description: 'Sign an EIP-2612 permit after policy validation',
-      parameters: {
-        chainId: {
-          type: 'number',
-          description: 'The chain ID',
-          required: true,
-        },
+  api.registerTool({
+    name: 'vault_sign_permit',
+    label: 'Sign EIP-2612 Permit',
+    description: 'Sign an EIP-2612 permit after policy validation',
+    parameters: {
+      type: 'object',
+      properties: {
+        chainId: { type: 'number', description: 'The chain ID' },
         token: {
           type: 'string',
           description: 'The token contract address (0x-prefixed)',
-          required: true,
         },
         spender: {
           type: 'string',
           description: 'The spender address (0x-prefixed)',
-          required: true,
         },
         value: {
           type: 'string',
           description: 'The permit value in wei (decimal string)',
-          required: true,
         },
         deadline: {
           type: 'number',
           description: 'The permit deadline (unix timestamp)',
-          required: true,
         },
-        domain: {
-          type: 'object',
-          description: 'The EIP-712 domain',
-          required: true,
-        },
-        types: {
-          type: 'object',
-          description: 'The EIP-712 types',
-          required: true,
-        },
-        message: {
-          type: 'object',
-          description: 'The EIP-712 message',
-          required: true,
-        },
+        domain: { type: 'object', description: 'The EIP-712 domain' },
+        types: { type: 'object', description: 'The EIP-712 types' },
+        message: { type: 'object', description: 'The EIP-712 message' },
       },
+      required: [
+        'chainId',
+        'token',
+        'spender',
+        'value',
+        'deadline',
+        'domain',
+        'types',
+        'message',
+      ],
     },
-    async (args) => {
+    async execute(_toolCallId: string, params: Record<string, unknown>) {
       const result = await signPermit(ctx, {
-        chainId: args.chainId as number,
-        token: args.token as string,
-        spender: args.spender as string,
-        value: args.value as string,
-        deadline: args.deadline as number,
-        domain: args.domain as Record<string, unknown>,
-        types: args.types as Record<string, unknown>,
-        message: args.message as Record<string, unknown>,
+        chainId: params.chainId as number,
+        token: params.token as string,
+        spender: params.spender as string,
+        value: params.value as string,
+        deadline: params.deadline as number,
+        domain: params.domain as Record<string, unknown>,
+        types: params.types as Record<string, unknown>,
+        message: params.message as Record<string, unknown>,
       });
       return toResult(result);
     },
-  );
+  } as AnyAgentTool);
 }
 
 function registerGetBalance(
   api: OpenClawPluginApi,
   ctx: WorkflowContext,
 ): void {
-  api.registerTool(
-    'vault_get_balance',
-    {
-      description: 'Query native ETH or ERC20 token balance for an address',
-      parameters: {
+  api.registerTool({
+    name: 'vault_get_balance',
+    label: 'Get Balance',
+    description: 'Query native ETH or ERC20 token balance for an address',
+    parameters: {
+      type: 'object',
+      properties: {
         chainId: {
           type: 'number',
           description: 'The chain ID to query',
-          required: true,
         },
         address: {
           type: 'string',
@@ -204,96 +200,96 @@ function registerGetBalance(
           description: 'ERC20 token address (omit for native ETH balance)',
         },
       },
+      required: ['chainId'],
     },
-    async (args) => {
+    async execute(_toolCallId: string, params: Record<string, unknown>) {
       const result = await getBalanceWorkflow(ctx, {
-        chainId: args.chainId as number,
-        address: args.address as string | undefined,
-        token: args.token as string | undefined,
+        chainId: params.chainId as number,
+        address: params.address as string | undefined,
+        token: params.token as string | undefined,
       });
       return toResult(result);
     },
-  );
+  } as AnyAgentTool);
 }
 
 function registerSendTransfer(
   api: OpenClawPluginApi,
   ctx: WorkflowContext,
 ): void {
-  api.registerTool(
-    'vault_send_transfer',
-    {
-      description: 'Send native ETH transfer after policy validation, sign and broadcast',
-      parameters: {
+  api.registerTool({
+    name: 'vault_send_transfer',
+    label: 'Send ETH Transfer',
+    description: 'Send native ETH transfer after policy validation, sign and broadcast',
+    parameters: {
+      type: 'object',
+      properties: {
         chainId: {
           type: 'number',
           description: 'The chain ID for the transaction',
-          required: true,
         },
         to: {
           type: 'string',
           description: 'The recipient address (0x-prefixed)',
-          required: true,
         },
         value: {
           type: 'string',
           description: 'Amount in wei (decimal string)',
-          required: true,
         },
       },
+      required: ['chainId', 'to', 'value'],
     },
-    async (args) => {
+    async execute(_toolCallId: string, params: Record<string, unknown>) {
       const result = await sendTransfer(ctx, {
-        chainId: args.chainId as number,
-        to: args.to as string,
-        value: args.value as string,
+        chainId: params.chainId as number,
+        to: params.to as string,
+        value: params.value as string,
       });
       return toResult(result);
     },
-  );
+  } as AnyAgentTool);
 }
 
 function registerSendErc20Transfer(
   api: OpenClawPluginApi,
   ctx: WorkflowContext,
 ): void {
-  api.registerTool(
-    'vault_send_erc20_transfer',
-    {
-      description: 'Send ERC20 token transfer after policy validation, sign and broadcast',
-      parameters: {
+  api.registerTool({
+    name: 'vault_send_erc20_transfer',
+    label: 'Send ERC20 Transfer',
+    description: 'Send ERC20 token transfer after policy validation, sign and broadcast',
+    parameters: {
+      type: 'object',
+      properties: {
         chainId: {
           type: 'number',
           description: 'The chain ID for the transaction',
-          required: true,
         },
         token: {
           type: 'string',
           description: 'The ERC20 token contract address (0x-prefixed)',
-          required: true,
         },
         to: {
           type: 'string',
           description: 'The recipient address (0x-prefixed)',
-          required: true,
         },
         amount: {
           type: 'string',
           description: 'Amount in smallest unit (decimal string)',
-          required: true,
         },
       },
+      required: ['chainId', 'token', 'to', 'amount'],
     },
-    async (args) => {
+    async execute(_toolCallId: string, params: Record<string, unknown>) {
       const result = await sendErc20Transfer(ctx, {
-        chainId: args.chainId as number,
-        token: args.token as string,
-        to: args.to as string,
-        amount: args.amount as string,
+        chainId: params.chainId as number,
+        token: params.token as string,
+        to: params.to as string,
+        amount: params.amount as string,
       });
       return toResult(result);
     },
-  );
+  } as AnyAgentTool);
 }
 
 // ─── Dual-Gated Tools (only with enableUnsafeRawSign) ───
@@ -303,110 +299,115 @@ function registerSignTransaction(
   ctx: WorkflowContext,
 ): void {
   api.registerTool(
-    'vault_sign_transaction',
     {
+      name: 'vault_sign_transaction',
+      label: 'Sign Raw Transaction',
       description:
         '[UNSAFE] Sign a raw EVM transaction. Only available when enableUnsafeRawSign is configured.',
       parameters: {
-        chainId: {
-          type: 'number',
-          description: 'The chain ID',
-          required: true,
+        type: 'object',
+        properties: {
+          chainId: { type: 'number', description: 'The chain ID' },
+          to: {
+            type: 'string',
+            description: 'The target address (0x-prefixed)',
+          },
+          data: {
+            type: 'string',
+            description: 'The calldata (hex-encoded)',
+          },
+          value: {
+            type: 'string',
+            description: 'The value in wei (decimal string)',
+          },
+          nonce: { type: 'number', description: 'The transaction nonce' },
+          gas: {
+            type: 'string',
+            description: 'The gas limit (decimal string)',
+          },
+          maxFeePerGas: {
+            type: 'string',
+            description: 'Max fee per gas in wei',
+          },
+          maxPriorityFeePerGas: {
+            type: 'string',
+            description: 'Max priority fee per gas in wei',
+          },
         },
-        to: {
-          type: 'string',
-          description: 'The target address (0x-prefixed)',
-          required: true,
-        },
-        data: {
-          type: 'string',
-          description: 'The calldata (hex-encoded)',
-        },
-        value: {
-          type: 'string',
-          description: 'The value in wei (decimal string)',
-        },
-        nonce: { type: 'number', description: 'The transaction nonce' },
-        gas: {
-          type: 'string',
-          description: 'The gas limit (decimal string)',
-        },
-        maxFeePerGas: {
-          type: 'string',
-          description: 'Max fee per gas in wei',
-        },
-        maxPriorityFeePerGas: {
-          type: 'string',
-          description: 'Max priority fee per gas in wei',
-        },
+        required: ['chainId', 'to'],
       },
-      optional: true,
-    },
-    async (args) => {
-      if (!ctx.signer) {
-        ctx.auditSink.log({
-          service: ctx.service ?? 'agentic-vault-openclaw',
-          action: 'vault_sign_transaction',
-          who: ctx.caller,
-          what: 'Signer not available for raw transaction signing',
-          why: 'Configuration error: signer is required',
-          result: 'error',
-        });
-        return {
-          content: [{ type: 'text', text: 'Error: Signer is not available' }],
-        };
-      }
+      async execute(_toolCallId: string, params: Record<string, unknown>) {
+        if (!ctx.signer) {
+          ctx.auditSink.log({
+            service: ctx.service ?? 'agentic-vault-openclaw',
+            action: 'vault_sign_transaction',
+            who: ctx.caller,
+            what: 'Signer not available for raw transaction signing',
+            why: 'Configuration error: signer is required',
+            result: 'error',
+          });
+          return {
+            content: [{ type: 'text' as const, text: 'Error: Signer is not available' }],
+            details: undefined,
+          };
+        }
 
-      try {
-        const to = (args.to as string).toLowerCase() as `0x${string}`;
-        const tx: Record<string, unknown> = {
-          chainId: args.chainId as number,
-          to,
-          type: 'eip1559',
-        };
-        if (args.data) tx.data = args.data;
-        if (args.value) tx.value = BigInt(args.value as string);
-        if (args.nonce !== undefined) tx.nonce = args.nonce;
-        if (args.gas) tx.gas = BigInt(args.gas as string);
-        if (args.maxFeePerGas)
-          tx.maxFeePerGas = BigInt(args.maxFeePerGas as string);
-        if (args.maxPriorityFeePerGas)
-          tx.maxPriorityFeePerGas = BigInt(
-            args.maxPriorityFeePerGas as string,
-          );
+        try {
+          const to = (params.to as string).toLowerCase() as `0x${string}`;
+          const tx: Record<string, unknown> = {
+            chainId: params.chainId as number,
+            to,
+            type: 'eip1559',
+          };
+          if (params.data) tx.data = params.data;
+          if (params.value) tx.value = BigInt(params.value as string);
+          if (params.nonce !== undefined) tx.nonce = params.nonce;
+          if (params.gas) tx.gas = BigInt(params.gas as string);
+          if (params.maxFeePerGas)
+            tx.maxFeePerGas = BigInt(params.maxFeePerGas as string);
+          if (params.maxPriorityFeePerGas)
+            tx.maxPriorityFeePerGas = BigInt(
+              params.maxPriorityFeePerGas as string,
+            );
 
-        const signedTx = await ctx.signer.signTransaction(tx);
+          const signedTx = await ctx.signer.signTransaction(tx);
 
-        ctx.auditSink.log({
-          service: ctx.service ?? 'agentic-vault-openclaw',
-          action: 'vault_sign_transaction',
-          who: ctx.caller,
-          what: `Signed raw transaction to ${to} on chain ${args.chainId as number}`,
-          why: 'Raw transaction signing (enableUnsafeRawSign enabled)',
-          result: 'approved',
-          details: { chainId: args.chainId as number, to },
-        });
+          ctx.auditSink.log({
+            service: ctx.service ?? 'agentic-vault-openclaw',
+            action: 'vault_sign_transaction',
+            who: ctx.caller,
+            what: `Signed raw transaction to ${to} on chain ${params.chainId as number}`,
+            why: 'Raw transaction signing (enableUnsafeRawSign enabled)',
+            result: 'approved',
+            details: { chainId: params.chainId as number, to },
+          });
 
-        return { content: [{ type: 'text', text: signedTx }] };
-      } catch (error) {
-        const msg =
-          error instanceof Error ? error.message : String(error);
+          return {
+            content: [{ type: 'text' as const, text: signedTx }],
+            details: undefined,
+          };
+        } catch (error) {
+          const msg =
+            error instanceof Error ? error.message : String(error);
 
-        ctx.auditSink.log({
-          service: ctx.service ?? 'agentic-vault-openclaw',
-          action: 'vault_sign_transaction',
-          who: ctx.caller,
-          what: `Failed to sign raw transaction to ${args.to as string}`,
-          why: 'Signing error',
-          result: 'error',
-          details: { error: msg },
-        });
+          ctx.auditSink.log({
+            service: ctx.service ?? 'agentic-vault-openclaw',
+            action: 'vault_sign_transaction',
+            who: ctx.caller,
+            what: `Failed to sign raw transaction to ${params.to as string}`,
+            why: 'Signing error',
+            result: 'error',
+            details: { error: msg },
+          });
 
-        return {
-          content: [{ type: 'text', text: `Signing error: ${msg}` }],
-        };
-      }
-    },
+          return {
+            content: [{ type: 'text' as const, text: `Signing error: ${msg}` }],
+            details: undefined,
+          };
+        }
+      },
+    } as AnyAgentTool,
+    { optional: true },
   );
 }
 
@@ -415,89 +416,84 @@ function registerSignTypedData(
   ctx: WorkflowContext,
 ): void {
   api.registerTool(
-    'vault_sign_typed_data',
     {
+      name: 'vault_sign_typed_data',
+      label: 'Sign Raw Typed Data',
       description:
         '[UNSAFE] Sign raw EIP-712 typed data. Only available when enableUnsafeRawSign is configured.',
       parameters: {
-        domain: {
-          type: 'object',
-          description: 'The EIP-712 domain',
-          required: true,
+        type: 'object',
+        properties: {
+          domain: { type: 'object', description: 'The EIP-712 domain' },
+          types: { type: 'object', description: 'The EIP-712 types' },
+          primaryType: {
+            type: 'string',
+            description: 'The primary type name',
+          },
+          message: { type: 'object', description: 'The EIP-712 message' },
         },
-        types: {
-          type: 'object',
-          description: 'The EIP-712 types',
-          required: true,
-        },
-        primaryType: {
-          type: 'string',
-          description: 'The primary type name',
-          required: true,
-        },
-        message: {
-          type: 'object',
-          description: 'The EIP-712 message',
-          required: true,
-        },
+        required: ['domain', 'types', 'primaryType', 'message'],
       },
-      optional: true,
-    },
-    async (args) => {
-      if (!ctx.signer) {
-        ctx.auditSink.log({
-          service: ctx.service ?? 'agentic-vault-openclaw',
-          action: 'vault_sign_typed_data',
-          who: ctx.caller,
-          what: 'Signer not available for typed data signing',
-          why: 'Configuration error: signer is required',
-          result: 'error',
-        });
-        return {
-          content: [{ type: 'text', text: 'Error: Signer is not available' }],
-        };
-      }
+      async execute(_toolCallId: string, params: Record<string, unknown>) {
+        if (!ctx.signer) {
+          ctx.auditSink.log({
+            service: ctx.service ?? 'agentic-vault-openclaw',
+            action: 'vault_sign_typed_data',
+            who: ctx.caller,
+            what: 'Signer not available for typed data signing',
+            why: 'Configuration error: signer is required',
+            result: 'error',
+          });
+          return {
+            content: [{ type: 'text' as const, text: 'Error: Signer is not available' }],
+            details: undefined,
+          };
+        }
 
-      try {
-        const sig = await ctx.signer.signTypedData({
-          domain: args.domain as Record<string, unknown>,
-          types: args.types as Record<string, unknown>,
-          primaryType: args.primaryType as string,
-          message: args.message as Record<string, unknown>,
-        });
+        try {
+          const sig = await ctx.signer.signTypedData({
+            domain: params.domain as Record<string, unknown>,
+            types: params.types as Record<string, unknown>,
+            primaryType: params.primaryType as string,
+            message: params.message as Record<string, unknown>,
+          });
 
-        ctx.auditSink.log({
-          service: ctx.service ?? 'agentic-vault-openclaw',
-          action: 'vault_sign_typed_data',
-          who: ctx.caller,
-          what: `Signed typed data with primaryType ${args.primaryType as string}`,
-          why: 'Raw typed data signing (enableUnsafeRawSign enabled)',
-          result: 'approved',
-          details: { primaryType: args.primaryType as string },
-        });
+          ctx.auditSink.log({
+            service: ctx.service ?? 'agentic-vault-openclaw',
+            action: 'vault_sign_typed_data',
+            who: ctx.caller,
+            what: `Signed typed data with primaryType ${params.primaryType as string}`,
+            why: 'Raw typed data signing (enableUnsafeRawSign enabled)',
+            result: 'approved',
+            details: { primaryType: params.primaryType as string },
+          });
 
-        return {
-          content: [{ type: 'text', text: JSON.stringify(sig) }],
-        };
-      } catch (error) {
-        const msg =
-          error instanceof Error ? error.message : String(error);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(sig) }],
+            details: undefined,
+          };
+        } catch (error) {
+          const msg =
+            error instanceof Error ? error.message : String(error);
 
-        ctx.auditSink.log({
-          service: ctx.service ?? 'agentic-vault-openclaw',
-          action: 'vault_sign_typed_data',
-          who: ctx.caller,
-          what: `Failed to sign typed data with primaryType ${args.primaryType as string}`,
-          why: 'Signing error',
-          result: 'error',
-          details: { error: msg },
-        });
+          ctx.auditSink.log({
+            service: ctx.service ?? 'agentic-vault-openclaw',
+            action: 'vault_sign_typed_data',
+            who: ctx.caller,
+            what: `Failed to sign typed data with primaryType ${params.primaryType as string}`,
+            why: 'Signing error',
+            result: 'error',
+            details: { error: msg },
+          });
 
-        return {
-          content: [{ type: 'text', text: `Signing error: ${msg}` }],
-        };
-      }
-    },
+          return {
+            content: [{ type: 'text' as const, text: `Signing error: ${msg}` }],
+            details: undefined,
+          };
+        }
+      },
+    } as AnyAgentTool,
+    { optional: true },
   );
 }
 

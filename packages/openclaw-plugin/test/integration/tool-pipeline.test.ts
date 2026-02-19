@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { type OpenClawPluginApi, type OpenClawToolConfig, type OpenClawToolHandler } from '../../src/types.js';
+import { type OpenClawPluginConfig } from '../../src/types.js';
 
 // Mock the host package
 vi.mock('@agenticvault/agentic-vault', () => {
@@ -45,16 +45,17 @@ vi.mock('@agenticvault/agentic-vault/protocols', () => {
 });
 
 interface RegisteredTool {
-  config: OpenClawToolConfig;
-  handler: OpenClawToolHandler;
+  tool: { name: string; execute: (toolCallId: string, params: Record<string, unknown>) => Promise<{ content: { type: string; text: string }[] }> };
+  opts?: { optional?: boolean };
 }
 
-function createMockApi(): OpenClawPluginApi & { tools: Map<string, RegisteredTool> } {
+function createMockApi(config?: OpenClawPluginConfig) {
   const tools = new Map<string, RegisteredTool>();
   return {
+    pluginConfig: config as Record<string, unknown> | undefined,
     tools,
-    registerTool(name: string, config: OpenClawToolConfig, handler: OpenClawToolHandler) {
-      tools.set(name, { config, handler });
+    registerTool(tool: RegisteredTool['tool'], opts?: RegisteredTool['opts']) {
+      tools.set(tool.name, { tool, opts });
     },
   };
 }
@@ -65,13 +66,13 @@ describe('tool-pipeline integration', () => {
   });
 
   it('vault_get_address should return address via full register path', async () => {
-    const { register } = await import('../../src/index.js');
-    const api = createMockApi();
+    const mod = await import('../../src/index.js');
+    const api = createMockApi({ keyId: 'test-key', region: 'us-east-1' });
 
-    register(api, { keyId: 'test-key', region: 'us-east-1' });
+    mod.default(api as never);
 
-    const handler = api.tools.get('vault_get_address')!.handler;
-    const result = await handler({});
+    const tool = api.tools.get('vault_get_address')!.tool;
+    const result = await tool.execute('test-id', {});
 
     expect(result.content).toBeDefined();
     expect(Array.isArray(result.content)).toBe(true);
@@ -80,13 +81,13 @@ describe('tool-pipeline integration', () => {
   });
 
   it('vault_health_check should return health status via full register path', async () => {
-    const { register } = await import('../../src/index.js');
-    const api = createMockApi();
+    const mod = await import('../../src/index.js');
+    const api = createMockApi({ keyId: 'test-key', region: 'us-east-1' });
 
-    register(api, { keyId: 'test-key', region: 'us-east-1' });
+    mod.default(api as never);
 
-    const handler = api.tools.get('vault_health_check')!.handler;
-    const result = await handler({});
+    const tool = api.tools.get('vault_health_check')!.tool;
+    const result = await tool.execute('test-id', {});
 
     expect(result.content).toBeDefined();
     expect(result.content[0].type).toBe('text');
@@ -94,13 +95,13 @@ describe('tool-pipeline integration', () => {
   });
 
   it('vault_sign_defi_call should return signed data via full register path', async () => {
-    const { register } = await import('../../src/index.js');
-    const api = createMockApi();
+    const mod = await import('../../src/index.js');
+    const api = createMockApi({ keyId: 'test-key', region: 'us-east-1' });
 
-    register(api, { keyId: 'test-key', region: 'us-east-1' });
+    mod.default(api as never);
 
-    const handler = api.tools.get('vault_sign_defi_call')!.handler;
-    const result = await handler({
+    const tool = api.tools.get('vault_sign_defi_call')!.tool;
+    const result = await tool.execute('test-id', {
       chainId: 1,
       to: '0x1234567890123456789012345678901234567890',
       data: '0x095ea7b3',
@@ -112,13 +113,13 @@ describe('tool-pipeline integration', () => {
   });
 
   it('vault_sign_permit should return signature via full register path', async () => {
-    const { register } = await import('../../src/index.js');
-    const api = createMockApi();
+    const mod = await import('../../src/index.js');
+    const api = createMockApi({ keyId: 'test-key', region: 'us-east-1' });
 
-    register(api, { keyId: 'test-key', region: 'us-east-1' });
+    mod.default(api as never);
 
-    const handler = api.tools.get('vault_sign_permit')!.handler;
-    const result = await handler({
+    const tool = api.tools.get('vault_sign_permit')!.tool;
+    const result = await tool.execute('test-id', {
       chainId: 1,
       token: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
       spender: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45',

@@ -1,4 +1,4 @@
-<!-- Source: packages/openclaw-plugin/README.md | Commit: 9d69f83 | Last synced: 2026-02-17 -->
+<!-- Source: packages/openclaw-plugin/README.md | Last synced: 2026-02-19 -->
 
 # @agenticvault/openclaw
 
@@ -8,24 +8,56 @@
 
 ## 설치
 
+### OpenClaw 호스트 설정을 통한 설치 (권장)
+
+패키지와 peer dependency를 설치한 후 OpenClaw 호스트 설정에 등록합니다:
+
 ```bash
-npm install @agenticvault/openclaw @agenticvault/agentic-vault
+npm install @agenticvault/openclaw openclaw
 ```
 
-## 설정
+### `plugins.load.paths`를 통한 설치 (수동)
 
-OpenClaw 에이전트 설정에서 플러그인을 등록합니다:
+플러그인 로딩을 명시적으로 제어하려면 로컬 디렉토리에 패키지를 설치하고 OpenClaw에 경로를 지정합니다:
+
+```bash
+# 로컬 디렉토리에 설치
+mkdir -p ./openclaw-plugins
+cd ./openclaw-plugins
+npm install @agenticvault/openclaw
+```
+
+그런 다음 OpenClaw 호스트 설정에 경로를 추가합니다:
 
 ```json
 {
   "plugins": {
-    "agentic-vault": {
-      "package": "@agenticvault/openclaw",
-      "config": {
-        "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
-        "region": "us-east-1",
-        "policyConfigPath": "./policy.json",
-        "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
+    "load": {
+      "paths": ["./openclaw-plugins/node_modules/@agenticvault/openclaw"]
+    }
+  }
+}
+```
+
+> **팁**: 프로덕션 환경에서는 정확한 버전을 고정하세요 (`npm install @agenticvault/openclaw@0.1.1`). 예기치 않은 업그레이드를 방지합니다.
+
+> **알려진 제한**: `openclaw plugins install @agenticvault/openclaw`은 설치 프로그램 ID 불일치가 발생할 수 있습니다. 업스트림에서 수정될 때까지 위의 방법을 사용하여 설치하세요.
+
+## 설정
+
+OpenClaw 호스트 설정에서 플러그인을 등록합니다. entries 키는 매니페스트 `id`(`"agentic-vault"`)와 일치해야 합니다:
+
+```json
+{
+  "plugins": {
+    "entries": {
+      "agentic-vault": {
+        "config": {
+          "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
+          "region": "us-east-1",
+          "policyConfigPath": "./policy.json",
+          "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
+        }
       }
     }
   }
@@ -61,6 +93,18 @@ OpenClaw 에이전트 설정에서 플러그인을 등록합니다:
 |------|------|
 | `vault_sign_transaction` | 원시 EVM 트랜잭션에 서명합니다 (디코더 파이프라인 우회) |
 | `vault_sign_typed_data` | 원시 EIP-712 타입 데이터에 서명합니다 (디코더 파이프라인 우회) |
+
+## 프리릴리스 API에서 마이그레이션
+
+플러그인 진입점이 프리릴리스 `register(api, config)`에서 공식 SDK 계약 `export default function(api)`로 변경되었습니다:
+
+| 변경 전 (프리릴리스) | 변경 후 (현재) |
+|---------------------|---------------|
+| `import { register } from "@agenticvault/openclaw"` | `export default function(api)` |
+| `register(api, config)` | 설정은 `api.pluginConfig`에서 읽음 |
+| `api.registerTool(name, config, handler)` | `api.registerTool({ name, description, parameters, label, execute })` |
+
+플러그인은 이제 공식 `openclaw/plugin-sdk` 타입을 사용하며, `package.json`의 `openclaw` 필드를 통해 OpenClaw 게이트웨이에서 검색됩니다.
 
 ## 보안
 

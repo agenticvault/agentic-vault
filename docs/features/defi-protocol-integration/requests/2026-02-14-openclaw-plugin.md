@@ -36,14 +36,14 @@ Phase 6 建立的 workflow layer（`src/protocols/workflows/`）使得新增 int
 | 套件名稱 | `@agenticvault/openclaw` |
 | 位置 | `packages/openclaw-plugin/` |
 | Workspace 設定 | 新增 `pnpm-workspace.yaml`（`packages: ['packages/*']`）；root `package.json` 不需 `workspaces` field（pnpm 使用獨立 workspace file） |
-| Dependencies | `peerDependencies: { "@agenticvault/agentic-vault": "^0.1.0" }` |
-| Import 限制 | 僅 import public API（`@agenticvault/agentic-vault` + `@agenticvault/agentic-vault/protocols`） |
+| Dependencies | `peerDependencies: { "@agenticvault/agentic-vault": "~0.1.1", "openclaw": ">=2026.1.0" }` |
+| Import 限制 | 僅 import public API（`@agenticvault/agentic-vault` + `@agenticvault/agentic-vault/protocols` + `openclaw/plugin-sdk`） |
 
-### 8b. Tool Registration（4 safe + 2 dual-gated）
+### 8b. Tool Registration（7 safe + 2 dual-gated）
 
 | Item | Description |
 |------|-------------|
-| Safe tools | `vault_get_address`, `vault_health_check`, `vault_sign_defi_call`, `vault_sign_permit` |
+| Safe tools | `vault_get_address`, `vault_health_check`, `vault_sign_defi_call`, `vault_sign_permit`, `vault_get_balance`, `vault_send_transfer`, `vault_send_erc20_transfer` |
 | Dual-gated tools | `vault_sign_transaction`, `vault_sign_typed_data`（雙重保護：`{ optional: true }` + 需 config 中 `enableUnsafeRawSign: true` 才註冊） |
 | Gating 機制 | 即使 OpenClaw agent allowlist 啟用 optional tool，仍需使用者在 plugin config 中明確設定 `enableUnsafeRawSign: true`，與 CLI `--unsafe-raw-sign` 對齊 |
 | Response format | `{ content: [{ type: 'text', text: string }] }`（OpenClaw 標準格式） |
@@ -84,7 +84,7 @@ Phase 6 建立的 workflow layer（`src/protocols/workflows/`）使得新增 int
 
 | Scope | Description |
 |-------|-------------|
-| In | 獨立 OpenClaw plugin 套件、4+2 tools、config schema、ADR 更新、CI |
+| In | 獨立 OpenClaw plugin 套件、7+2 tools（含 balance/transfer）、config schema、ADR 更新、CI、SDK alignment |
 | Out | HTTP/SSE transport（不需要）、OpenClaw-specific skills（deferred）、Aave tools（Phase 4） |
 
 ## Related Files
@@ -94,13 +94,16 @@ Phase 6 建立的 workflow layer（`src/protocols/workflows/`）使得新增 int
 | `pnpm-workspace.yaml` | New | Workspace 設定（`packages: ['packages/*']`） |
 | `packages/openclaw-plugin/package.json` | New | Plugin npm manifest |
 | `packages/openclaw-plugin/tsconfig.json` | New | TypeScript config（standalone, ES2022） |
-| `packages/openclaw-plugin/src/index.ts` | New | Plugin entry — `register(api)` |
-| `packages/openclaw-plugin/src/tools.ts` | New | Tool definitions → workflow delegation |
+| `packages/openclaw-plugin/src/index.ts` | New | Plugin entry — `export default function(api)` (SDK-aligned) |
+| `packages/openclaw-plugin/src/types.ts` | New | SDK type re-exports + `OpenClawPluginConfig` |
+| `packages/openclaw-plugin/src/tools.ts` | New | Tool definitions → workflow delegation (AgentTool format) |
 | `packages/openclaw-plugin/src/context.ts` | New | OpenClaw config → WorkflowContext |
 | `packages/openclaw-plugin/openclaw.plugin.json` | New | OpenClaw manifest (configSchema) |
-| `packages/openclaw-plugin/test/tools.test.ts` | New | Tool registration + workflow delegation tests |
-| `packages/openclaw-plugin/test/context.test.ts` | New | Config builder tests |
-| `packages/openclaw-plugin/test/trust-boundary.test.ts` | New | Import 限制驗證（僅 public API） |
+| `packages/openclaw-plugin/test/unit/tools.test.ts` | New | Tool registration + workflow delegation tests |
+| `packages/openclaw-plugin/test/unit/context.test.ts` | New | Config builder tests |
+| `packages/openclaw-plugin/test/unit/trust-boundary.test.ts` | New | Import 限制驗證（僅 public API） |
+| `packages/openclaw-plugin/test/integration/plugin-load.test.ts` | New | Plugin default export loading test |
+| `packages/openclaw-plugin/test/integration/tool-pipeline.test.ts` | New | Tool → workflow pipeline integration test |
 | `src/protocols/workflows/types.ts` | Modify | `WorkflowCaller` type 新增 `'openclaw'` |
 | `docs/project/adrs/ADR-001-architecture-decisions.md` | Modify | Decision 4 → Phase 1.5 |
 | `.github/workflows/openclaw-ci.yml` | New | PR/push CI（typecheck + lint + test） |
@@ -113,10 +116,10 @@ Phase 6 建立的 workflow layer（`src/protocols/workflows/`）使得新增 int
 - [x] `packages/openclaw-plugin/` 建立並可獨立 build
 - [x] `peerDependencies` 正確設定
 - [x] 僅 import public API（無內部路徑）
-- [x] Trust boundary test 驗證 import 限制（`packages/openclaw-plugin/test/trust-boundary.test.ts`）
+- [x] Trust boundary test 驗證 import 限制（`packages/openclaw-plugin/test/unit/trust-boundary.test.ts`）
 
 ### 8b. Tool Registration
-- [x] 4 safe tools 透過 `api.registerTool()` 正確註冊
+- [x] 7 safe tools 透過 `api.registerTool(AgentTool, opts?)` 正確註冊（SDK format with `label`, JSON Schema `parameters`）
 - [x] 2 dual-gated tools：`{ optional: true }` + `enableUnsafeRawSign` config flag 雙重檢查
 - [x] 無 `enableUnsafeRawSign: true` 時，即使 OpenClaw allowlist 啟用 optional tool 也不註冊
 - [x] 每個 tool 正確呼叫對應 workflow 函式
@@ -126,7 +129,7 @@ Phase 6 建立的 workflow layer（`src/protocols/workflows/`）使得新增 int
 - [x] OpenClaw config → WorkflowContext 正確轉換
 - [x] `WorkflowCaller` type 新增 `'openclaw'`（`src/protocols/workflows/types.ts`）
 - [x] `caller: 'openclaw'` 出現在審計日誌
-- [x] Signer + PolicyEngine 每個 process 僅初始化一次（lazy singleton pattern）
+- [x] Signer + PolicyEngine factory pattern（每次 `buildContext()` 建立新 instance，caller 自行 cache）
 - [x] Missing `keyId`/`region` → 清楚錯誤訊息
 - [x] 無 policy config → deny-all behavior
 
@@ -139,7 +142,7 @@ Phase 6 建立的 workflow layer（`src/protocols/workflows/`）使得新增 int
 - [x] `openclaw-ci.yml` 通過 PR/push 觸發（typecheck + lint + test）
 - [x] `release-openclaw.yml` 通過 tag 觸發 npm publish
 - [x] npm publish 使用 `--provenance --access public`
-- [ ] Package 可被 OpenClaw extension 系統載入
+- [ ] Package 可被 OpenClaw extension 系統載入（⚠️ 已知 blocker: installer ID mismatch — 見 Phase 8.5 brainstorm）
 
 ### Open-Source Readiness 補充修復
 - [x] `packages/openclaw-plugin/package.json` 新增 `prepack` 腳本（確保 publish 前自動 build）
@@ -184,8 +187,9 @@ Phase 6 建立的 workflow layer（`src/protocols/workflows/`）使得新增 int
 |-------|--------|------|
 | Analysis | Done | Brainstorming Nash Equilibrium reached |
 | Development | Done | All source files implemented |
-| Testing | Done | 34 plugin tests + 467 root tests pass |
+| Testing | Done | 46 plugin tests (38 unit + 8 integration) + 645 root tests = 691 total |
 | Acceptance | Done | All AC checked; OpenClaw registry submission pending npm publish |
+| SDK Alignment | Done | Phase 8.5: Migrated to `openclaw/plugin-sdk` official contract (2026-02-19) |
 
 ## References
 
@@ -196,3 +200,4 @@ Phase 6 建立的 workflow layer（`src/protocols/workflows/`）使得新增 int
 - ClawHavoc Security Incident: https://www.digitalapplied.com/blog/ai-agent-plugin-security-lessons-clawhavoc-2026
 - npm Trusted Publishers: https://docs.npmjs.com/trusted-publishers/
 - Brainstorming: Codex threads `019c5a43-1350-76a1-8ac0-048c1b498173`, `019c5a4d-4abe-7840-b81a-e1212985ee70`
+- SDK Alignment: Codex thread `019c75c1-a57f-77f1-af6a-8922b6bcdde1` (review), `019c75ca-db6e-7450-a2d5-f69a941a511d` (installation brainstorm)

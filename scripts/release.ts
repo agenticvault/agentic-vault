@@ -361,8 +361,60 @@ export function bump(opts: RunOptions, newVersion: string): void {
 // tag
 // ---------------------------------------------------------------------------
 
-export function tag(opts: RunOptions, dryRun: boolean): void {
+export function tag(opts: RunOptions, version: string | undefined, dryRun: boolean): void {
   const { exec: run, rootDir, stdout } = opts;
+
+  // Validate version early (bump also validates, but dry-run skips bump)
+  if (version && !isValidSemver(version)) {
+    throw new Error(`Invalid semver: ${version}`);
+  }
+
+  // Dry-run with version: preview all operations without side effects
+  if (version && dryRun) {
+    const coreTag = `v${version}`;
+    const ocTag = `openclaw-v${version}`;
+    const addFiles = [
+      'package.json',
+      `${OPENCLAW_DIR}/package.json`,
+      ...PLUGIN_MANIFESTS.filter((p) => existsSync(resolve(rootDir, p))),
+      'pnpm-lock.yaml',
+    ];
+    stdout('[warn]  DRY RUN — no changes will be made');
+    stdout(`[info]  [dry-run] bump all versions to ${version}`);
+    stdout(`[info]  [dry-run] pnpm install --lockfile-only`);
+    stdout(`[info]  [dry-run] pnpm build && pnpm test:unit`);
+    stdout(`[info]  [dry-run] git add ${addFiles.join(' ')}`);
+    stdout(`[info]  [dry-run] git commit -m "chore: bump version to ${version}"`);
+    stdout(`[info]  [dry-run] git tag -a ${coreTag} -m "Release ${CORE_PKG}@${version}"`);
+    stdout(`[info]  [dry-run] git tag -a ${ocTag} -m "Release ${OPENCLAW_PKG}@${version}"`);
+    stdout(`[info]  [dry-run] git push origin HEAD ${coreTag} ${ocTag}`);
+    return;
+  }
+
+  // If version provided (non dry-run), check clean then bump + commit
+  if (version) {
+    if (!isGitClean(rootDir, run)) {
+      throw new Error('Working tree is dirty. Commit or stash changes before releasing.');
+    }
+
+    bump(opts, version);
+
+    // Stage bumped files and commit
+    const addFiles = [
+      'package.json',
+      `${OPENCLAW_DIR}/package.json`,
+      ...PLUGIN_MANIFESTS.filter((p) => existsSync(resolve(rootDir, p))),
+      'pnpm-lock.yaml',
+    ];
+    run(`git add ${addFiles.join(' ')}`, { cwd: rootDir });
+    run(`git commit -m "chore: bump version to ${version}"`, { cwd: rootDir });
+    stdout(`[ok]    Committed version bump`);
+
+    // Verify tree is clean after commit (catches unexpected build artifacts)
+    if (!isGitClean(rootDir, run)) {
+      throw new Error('Working tree is dirty after bump commit. Check for untracked build artifacts.');
+    }
+  }
 
   const coreVer = getVersion(rootDir);
   const ocVer = getOpenClawVersion(rootDir);
@@ -375,8 +427,8 @@ export function tag(opts: RunOptions, dryRun: boolean): void {
   stdout(`[info]  Core:     ${coreTag}`);
   stdout(`[info]  OpenClaw: ${ocTag}`);
 
-  // Check git is clean
-  if (!isGitClean(rootDir, run)) {
+  // Check git is clean (no-version path only — version path checked above)
+  if (!version && !isGitClean(rootDir, run)) {
     throw new Error('Working tree is dirty. Commit all changes before tagging.');
   }
 
@@ -404,12 +456,17 @@ export function tag(opts: RunOptions, dryRun: boolean): void {
   run(`git tag -a ${ocTag} -m "Release ${OPENCLAW_PKG}@${ocVer}"`, { cwd: rootDir });
   stdout(`[ok]    Created tag: ${ocTag}`);
 
-  // Push tags
-  stdout('[info]  Pushing tags...');
-  run(`git push origin ${coreTag} ${ocTag}`, { cwd: rootDir });
-  stdout('[ok]    Pushed tags');
+  // Push (include HEAD when version was provided to push the bump commit)
+  stdout('[info]  Pushing...');
+  if (version) {
+    run(`git push origin HEAD ${coreTag} ${ocTag}`, { cwd: rootDir });
+    stdout('[ok]    Pushed commit + tags');
+  } else {
+    run(`git push origin ${coreTag} ${ocTag}`, { cwd: rootDir });
+    stdout('[ok]    Pushed tags');
+  }
 
-  stdout('\n── Tags created ──\n');
+  stdout('\n── Release complete ──\n');
   stdout('[info]  GitHub Actions will now run:');
   stdout(`  ${coreTag} → .github/workflows/release.yml`);
   stdout(`  ${ocTag}   → .github/workflows/release-openclaw.yml`);
@@ -450,7 +507,7 @@ Commands:
   preflight              Check prerequisites (npm login, build, tests)
   first-publish          Manual first publish to npm (one-time, no provenance)
   bump <version>         Bump version in package.json files + plugin manifests
-  tag                    Create git tags and push (triggers GHA workflows)
+  tag [version]          Bump (if version given) + commit + tag + push
 
 Options:
   --dry-run              Preview without side effects
@@ -463,9 +520,7 @@ Workflows:
     3. Configure Trusted Publisher on npmjs.com
 
   Subsequent releases:
-    1. npx tsx scripts/release.ts bump 0.2.0
-    2. git add -A && git commit -m 'chore: bump version to 0.2.0'
-    3. npx tsx scripts/release.ts tag
+    npx tsx scripts/release.ts tag 0.2.0
 `;
 
 export function main(argv: string[] = process.argv.slice(2)): void {
@@ -495,9 +550,11 @@ export function main(argv: string[] = process.argv.slice(2)): void {
       bump(opts, version);
       break;
     }
-    case 'tag':
-      tag(opts, dryRun);
+    case 'tag': {
+      const version = rest.find((arg) => arg !== '--dry-run');
+      tag(opts, version, dryRun);
       break;
+    }
     default:
       process.stdout.write(USAGE);
       process.exit(command ? 1 : 0);

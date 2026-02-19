@@ -600,6 +600,8 @@ describe('bump', () => {
 describe('tag', () => {
   beforeEach(() => {
     mockReadFileSync.mockReset();
+    mockWriteFileSync.mockReset();
+    mockExistsSync.mockReset();
   });
 
   it('should create and push tags', () => {
@@ -617,7 +619,7 @@ describe('tag', () => {
       }),
     });
 
-    tag(opts, false);
+    tag(opts, undefined, false);
 
     expect(calls).toContain('git tag -a v0.1.0 -m "Release @agenticvault/agentic-vault@0.1.0"');
     expect(calls).toContain('git tag -a openclaw-v0.1.0 -m "Release @agenticvault/openclaw@0.1.0"');
@@ -640,7 +642,7 @@ describe('tag', () => {
       }),
     });
 
-    tag(opts, true);
+    tag(opts, undefined, true);
 
     // Should NOT create actual tags
     expect(calls.filter((c) => c.startsWith('git tag')).length).toBe(0);
@@ -660,7 +662,7 @@ describe('tag', () => {
       }),
     });
 
-    expect(() => tag(opts, false)).toThrow('Working tree is dirty');
+    expect(() => tag(opts, undefined, false)).toThrow('Working tree is dirty');
   });
 
   it('should throw when tags already exist', () => {
@@ -677,7 +679,7 @@ describe('tag', () => {
       }),
     });
 
-    expect(() => tag(opts, false)).toThrow('Tags already exist: v0.1.0');
+    expect(() => tag(opts, undefined, false)).toThrow('Tags already exist: v0.1.0');
   });
 
   it('should report both existing tags', () => {
@@ -693,7 +695,129 @@ describe('tag', () => {
       }),
     });
 
-    expect(() => tag(opts, false)).toThrow('Tags already exist: v0.1.0, openclaw-v0.1.0');
+    expect(() => tag(opts, undefined, false)).toThrow('Tags already exist: v0.1.0, openclaw-v0.1.0');
+  });
+
+  it('should bump, commit, tag, and push when version is provided', () => {
+    // bump reads: getVersion, getOpenClawVersion, root pkg, oc pkg, 2 manifests
+    // tag reads: getVersion, getOpenClawVersion (after bump wrote new versions)
+    mockReadFileSync
+      .mockReturnValueOnce(makePkgJson('0.1.0'))
+      .mockReturnValueOnce(makeOcPkgJson('0.1.0'))
+      .mockReturnValueOnce(makePkgJson('0.1.0'))
+      .mockReturnValueOnce(makeOcPkgJson('0.1.0'))
+      .mockReturnValueOnce(makePluginManifest('0.1.0'))
+      .mockReturnValueOnce(makePluginManifest('0.1.0'))
+      .mockReturnValueOnce(makePkgJson('0.2.0'))
+      .mockReturnValueOnce(makeOcPkgJson('0.2.0'));
+
+    mockExistsSync.mockReturnValue(true);
+
+    const calls: string[] = [];
+    const opts = createMockOpts({
+      exec: vi.fn().mockImplementation((cmd: string) => {
+        calls.push(cmd);
+        if (cmd === 'git status --porcelain') return '';
+        if (cmd === 'git diff --name-only') return 'package.json';
+        if (cmd.startsWith('git rev-parse')) throw new Error('not found');
+        return '';
+      }),
+    });
+
+    tag(opts, '0.2.0', false);
+
+    // bump should have written version files
+    expect(mockWriteFileSync).toHaveBeenCalled();
+
+    // Should check git clean before bump
+    const statusIdx = calls.indexOf('git status --porcelain');
+    const installIdx = calls.indexOf('pnpm install --lockfile-only');
+    expect(statusIdx).toBeLessThan(installIdx);
+
+    // Should stage and commit bumped files
+    const addCmd = calls.find((c) => c.startsWith('git add'));
+    expect(addCmd).toBeDefined();
+    expect(addCmd).toContain('package.json');
+    expect(addCmd).toContain('pnpm-lock.yaml');
+
+    const commitCmd = calls.find((c) => c.startsWith('git commit'));
+    expect(commitCmd).toBe('git commit -m "chore: bump version to 0.2.0"');
+
+    // Should create tags with new version
+    expect(calls).toContain('git tag -a v0.2.0 -m "Release @agenticvault/agentic-vault@0.2.0"');
+    expect(calls).toContain('git tag -a openclaw-v0.2.0 -m "Release @agenticvault/openclaw@0.2.0"');
+
+    // Should push commit + tags with explicit refs
+    expect(calls).toContain('git push origin HEAD v0.2.0 openclaw-v0.2.0');
+  });
+
+  it('should not run any mutations when version is provided with dry-run', () => {
+    mockExistsSync.mockReturnValue(true);
+
+    const calls: string[] = [];
+    const opts = createMockOpts({
+      exec: vi.fn().mockImplementation((cmd: string) => {
+        calls.push(cmd);
+        return '';
+      }),
+    });
+
+    tag(opts, '0.2.0', true);
+
+    // Should NOT write any files (bump not called)
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
+
+    // Should NOT run any shell commands
+    expect(calls.length).toBe(0);
+
+    // Should output dry-run preview
+    expect(opts.output.some((line) => line.includes('DRY RUN'))).toBe(true);
+    expect(opts.output.some((line) => line.includes('bump all versions to 0.2.0'))).toBe(true);
+  });
+
+  it('should throw when working tree is dirty with version (pre-bump)', () => {
+    const opts = createMockOpts({
+      exec: vi.fn().mockImplementation((cmd: string) => {
+        if (cmd === 'git status --porcelain') return ' M file.ts';
+        return '';
+      }),
+    });
+
+    expect(() => tag(opts, '0.2.0', false)).toThrow('Working tree is dirty');
+  });
+
+  it('should throw when working tree is dirty after bump commit', () => {
+    // bump reads: getVersion, getOpenClawVersion, root pkg, oc pkg, 2 manifests
+    // tag reads: getVersion, getOpenClawVersion
+    mockReadFileSync
+      .mockReturnValueOnce(makePkgJson('0.1.0'))
+      .mockReturnValueOnce(makeOcPkgJson('0.1.0'))
+      .mockReturnValueOnce(makePkgJson('0.1.0'))
+      .mockReturnValueOnce(makeOcPkgJson('0.1.0'))
+      .mockReturnValueOnce(makePluginManifest('0.1.0'))
+      .mockReturnValueOnce(makePluginManifest('0.1.0'));
+
+    mockExistsSync.mockReturnValue(true);
+
+    let statusCallCount = 0;
+    const opts = createMockOpts({
+      exec: vi.fn().mockImplementation((cmd: string) => {
+        if (cmd === 'git status --porcelain') {
+          statusCallCount++;
+          // First call: clean (pre-bump), second call: dirty (post-commit)
+          return statusCallCount === 1 ? '' : ' M unexpected-artifact';
+        }
+        if (cmd === 'git diff --name-only') return 'package.json';
+        return '';
+      }),
+    });
+
+    expect(() => tag(opts, '0.2.0', false)).toThrow('dirty after bump commit');
+  });
+
+  it('should reject invalid semver when version is provided', () => {
+    const opts = createMockOpts();
+    expect(() => tag(opts, 'invalid', false)).toThrow('Invalid semver: invalid');
   });
 });
 

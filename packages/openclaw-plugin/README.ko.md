@@ -8,54 +8,77 @@
 
 ## 설치
 
-### OpenClaw 호스트 설정을 통한 설치 (권장)
+### 빠른 시작 (권장)
 
-패키지와 peer dependency를 설치한 후 OpenClaw 호스트 설정에 등록합니다:
+패키지를 설치한 후 OpenClaw extensions 디렉토리에 복사합니다:
 
 ```bash
-npm install @agenticvault/openclaw openclaw
+npm install @agenticvault/openclaw
+mkdir -p ~/.openclaw/extensions/agentic-vault
+cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
 ```
 
-### `plugins.load.paths`를 통한 설치 (수동)
+OpenClaw은 `~/.openclaw/extensions/` 내의 플러그인을 자동으로 감지합니다. 디렉토리 이름은 매니페스트 `id` (`agentic-vault`)와 일치해야 합니다.
 
-플러그인 로딩을 명시적으로 제어하려면 로컬 디렉토리에 패키지를 설치하고 OpenClaw에 경로를 지정합니다:
+### Tarball에서 설치 (로컬 node_modules 불필요)
+
+프로젝트 레벨 설치 없이 직접 다운로드하여 압축 해제합니다:
 
 ```bash
-# 로컬 디렉토리에 설치
-mkdir -p ./openclaw-plugins
-cd ./openclaw-plugins
+npm pack @agenticvault/openclaw --pack-destination /tmp
+mkdir -p ~/.openclaw/extensions/agentic-vault
+tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
+```
+
+### 개발 모드 (Symlink)
+
+플러그인 개발 시 extensions 디렉토리에 symlink를 생성합니다:
+
+```bash
+mkdir -p ~/.openclaw/extensions
+ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
+```
+
+### `plugins.load.paths`를 통한 설치 (고급)
+
+플러그인 로딩 경로를 완전히 제어하려면:
+
+```bash
+mkdir -p /home/user/my-workspace/.openclaw/extensions
+cd /home/user/my-workspace/.openclaw/extensions
 npm install @agenticvault/openclaw
 ```
 
-그런 다음 OpenClaw 호스트 설정에 경로를 추가합니다:
+그런 다음 OpenClaw 호스트 설정에 경로를 추가합니다 (프로덕션/데몬 환경에서는 절대 경로를 사용하세요):
 
 ```json
 {
   "plugins": {
     "load": {
-      "paths": ["./openclaw-plugins/node_modules/@agenticvault/openclaw"]
+      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/openclaw"]
     }
   }
 }
 ```
 
-> **팁**: 프로덕션 환경에서는 정확한 버전을 고정하세요 (`npm install @agenticvault/openclaw@0.1.1`). 예기치 않은 업그레이드를 방지합니다.
+> **팁**: 프로덕션 환경에서는 정확한 버전을 고정하세요 (`npm install @agenticvault/openclaw@0.1.2`). 예기치 않은 업그레이드를 방지합니다.
 
-> **알려진 제한**: `openclaw plugins install @agenticvault/openclaw`은 설치 프로그램 ID 불일치가 발생할 수 있습니다. 업스트림에서 수정될 때까지 위의 방법을 사용하여 설치하세요.
+> **알려진 제한**: `openclaw plugins install` (로컬 경로 및 `--link`를 포함한 모든 변형)은 unscoped npm 패키지 이름에서 extension ID (`openclaw`)를 유도하며, 이는 매니페스트 `id` (`agentic-vault`)와 일치하지 않아 설정 키 충돌이 발생합니다. 업스트림에서 수정될 때까지 위의 방법을 사용하여 설치하세요.
 
 ## 설정
 
-OpenClaw 호스트 설정에서 플러그인을 등록합니다. entries 키는 매니페스트 `id`(`"agentic-vault"`)와 일치해야 합니다:
+OpenClaw 호스트 설정에서 플러그인을 등록합니다. entries 키는 매니페스트 `id` (`"agentic-vault"`)와 일치해야 합니다. 설정에서 `plugins.allow`를 사용하는 경우 `"agentic-vault"`를 포함하세요:
 
 ```json
 {
   "plugins": {
+    "allow": ["agentic-vault"],
     "entries": {
       "agentic-vault": {
         "config": {
           "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
           "region": "us-east-1",
-          "policyConfigPath": "./policy.json",
+          "policyConfigPath": "/home/user/agentic-vault/policy.json",
           "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
         }
       }
@@ -112,6 +135,27 @@ OpenClaw 호스트 설정에서 플러그인을 등록합니다. entries 키는 
 - **페일 클로즈** -- 알 수 없는 calldata는 항상 거부됩니다
 - **이중 게이트 원시 서명** -- `vault_sign_transaction`과 `vault_sign_typed_data`는 기본적으로 비활성화됩니다. 활성화하려면 플러그인 설정에서 `enableUnsafeRawSign: true`를 설정해야 합니다
 - **감사 추적** -- 모든 작업은 구조화된 JSON으로 기록됩니다
+
+## 멀티 에이전트 환경 강화
+
+멀티 에이전트 환경에서는 vault 도구를 지정된 금융 에이전트로만 제한합니다. 비금융 에이전트의 `tools.deny`에 모든 `vault_*` 도구 이름을 추가하세요:
+
+```json
+{
+  "agents": {
+    "general-assistant": {
+      "tools": {
+        "deny": [
+          "vault_get_address", "vault_health_check", "vault_get_balance",
+          "vault_sign_defi_call", "vault_sign_permit",
+          "vault_send_transfer", "vault_send_erc20_transfer",
+          "vault_sign_transaction", "vault_sign_typed_data"
+        ]
+      }
+    }
+  }
+}
+```
 
 ## 정책 설정
 

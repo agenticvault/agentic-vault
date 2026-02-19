@@ -8,54 +8,77 @@
 
 ## 安裝
 
-### 透過 OpenClaw 主機設定（推薦）
+### 快速安裝（推薦）
 
-安裝套件及其 peer dependency，然後在 OpenClaw 主機設定中註冊：
+安裝套件後，複製至 OpenClaw extensions 目錄：
 
 ```bash
-npm install @agenticvault/openclaw openclaw
+npm install @agenticvault/openclaw
+mkdir -p ~/.openclaw/extensions/agentic-vault
+cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
 ```
 
-### 透過 `plugins.load.paths`（手動）
+OpenClaw 會自動偵測 `~/.openclaw/extensions/` 下的插件。目錄名稱必須與 manifest `id`（`agentic-vault`）一致。
 
-若偏好明確控制插件載入，可將套件安裝至本地目錄，再將路徑指定給 OpenClaw：
+### 從 Tarball 安裝（無需本地 node_modules）
+
+直接下載並解壓，無需專案層級安裝：
 
 ```bash
-# 安裝至本地目錄
-mkdir -p ./openclaw-plugins
-cd ./openclaw-plugins
+npm pack @agenticvault/openclaw --pack-destination /tmp
+mkdir -p ~/.openclaw/extensions/agentic-vault
+tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
+```
+
+### 開發模式（Symlink）
+
+開發插件時，建立 symlink 至 extensions 目錄：
+
+```bash
+mkdir -p ~/.openclaw/extensions
+ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
+```
+
+### 透過 `plugins.load.paths`（進階）
+
+若需完整控制插件載入路徑：
+
+```bash
+mkdir -p /home/user/my-workspace/.openclaw/extensions
+cd /home/user/my-workspace/.openclaw/extensions
 npm install @agenticvault/openclaw
 ```
 
-然後在 OpenClaw 主機設定中新增路徑：
+然後在 OpenClaw 主機設定中新增路徑（正式/背景服務環境請使用絕對路徑）：
 
 ```json
 {
   "plugins": {
     "load": {
-      "paths": ["./openclaw-plugins/node_modules/@agenticvault/openclaw"]
+      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/openclaw"]
     }
   }
 }
 ```
 
-> **建議**：正式環境請固定版本（`npm install @agenticvault/openclaw@0.1.1`），避免意外升級。
+> **建議**：正式環境請固定版本（`npm install @agenticvault/openclaw@0.1.2`），避免意外升級。
 
-> **已知限制**：`openclaw plugins install @agenticvault/openclaw` 可能遇到 installer ID 不符的問題。在上游修復前，請使用上述方式安裝。
+> **已知限制**：`openclaw plugins install`（所有方式，包含本地路徑與 `--link`）會從 unscoped npm 套件名稱推導 extension ID（`openclaw`），與 manifest `id`（`agentic-vault`）不一致，導致設定鍵衝突。在上游修復前，請使用上述方式安裝。
 
 ## 設定
 
-在 OpenClaw 主機設定中註冊插件。entries key 必須與 manifest `id`（`"agentic-vault"`）一致：
+在 OpenClaw 主機設定中註冊插件。entries key 必須與 manifest `id`（`"agentic-vault"`）一致。若設定中使用了 `plugins.allow`，需加入 `"agentic-vault"`：
 
 ```json
 {
   "plugins": {
+    "allow": ["agentic-vault"],
     "entries": {
       "agentic-vault": {
         "config": {
           "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
           "region": "us-east-1",
-          "policyConfigPath": "./policy.json",
+          "policyConfigPath": "/home/user/agentic-vault/policy.json",
           "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
         }
       }
@@ -112,6 +135,27 @@ npm install @agenticvault/openclaw
 - **失敗關閉** -- 未知 calldata 一律拒絕
 - **雙重閘控原始簽署** -- `vault_sign_transaction` 與 `vault_sign_typed_data` 預設停用；啟用需在插件設定中指定 `enableUnsafeRawSign: true`
 - **稽核軌跡** -- 每次操作皆以結構化 JSON 記錄
+
+## 多代理環境強化
+
+在多代理環境中，將 vault 工具限制給指定的金融代理。在非金融代理的 `tools.deny` 中加入所有 `vault_*` 工具名稱：
+
+```json
+{
+  "agents": {
+    "general-assistant": {
+      "tools": {
+        "deny": [
+          "vault_get_address", "vault_health_check", "vault_get_balance",
+          "vault_sign_defi_call", "vault_sign_permit",
+          "vault_send_transfer", "vault_send_erc20_transfer",
+          "vault_sign_transaction", "vault_sign_typed_data"
+        ]
+      }
+    }
+  }
+}
+```
 
 ## 策略設定
 

@@ -52,8 +52,8 @@ importers:
   packages/openclaw-plugin:
     dependencies:
       '@agenticvault/agentic-vault':
-        specifier: ~0.1.1
-        version: 0.1.1(typescript@5.9.3)
+        specifier: ~0.1.2
+        version: 0.1.2(typescript@5.9.3)
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.2
@@ -84,8 +84,8 @@ packages:
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
 
-  '@agenticvault/agentic-vault@0.1.1':
-    resolution: {integrity: sha512-/72oIbmDq9jDFBnpZFGySxmcf95i/nH8J6hj3pWysDnUJkUeiP5xAHE9CAtKHg1ZqEdxj9qp8/sUvXVr236+jA==}
+  '@agenticvault/agentic-vault@0.1.2':
+    resolution: {integrity: sha512-PgGkOcpIbHw6F/Swb6GVMk5ukyuGtxlC1YzSmoMKWscNTH41iGDd5BjRArBx1O9n2jPI+rZHM1HmBVyp+fBHUA==}
     engines: {node: '>=24'}
     hasBin: true
 
@@ -4096,7 +4096,7 @@ snapshots:
     dependencies:
       zod: 4.3.6
 
-  '@agenticvault/agentic-vault@0.1.1(typescript@5.9.3)':
+  '@agenticvault/agentic-vault@0.1.2(typescript@5.9.3)':
     dependencies:
       '@aws-sdk/client-kms': 3.988.0
       '@modelcontextprotocol/sdk': 1.26.0(zod@4.3.6)

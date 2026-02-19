@@ -30,7 +30,7 @@ sequenceDiagram
 | `op` CLI (optional) | Dev machine | Store CA key in 1Password |
 | AWS CLI v2 | VM | Verify credentials (`aws sts get-caller-identity`) |
 | `aws_signing_helper` | VM | Exchange cert for credentials |
-| Node.js 24+ | VM | Run agentic-vault |
+| Node.js 22+ | VM | Run agentic-vault |
 
 ## Overview
 
@@ -264,8 +264,8 @@ scp ~/rolesanywhere-ca/client.key user@VM_IP:/tmp/
 ### Step 6: Install Tools + Deploy Cert
 
 ```bash
-# Node.js 24
-curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+# Node.js 22 (LTS) or 24
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs
 
 # Agentic Vault (openclaw is optional — only if using OpenClaw plugin)
@@ -417,3 +417,82 @@ rm ca.key
 | `unable to use cert store signer on linux` | `credential_process` in `~/.aws/config` has backslash line continuations | `credential_process` must be a single line; remove all `\` newlines |
 | `Unable to parse config file` | Malformed `~/.aws/config` (e.g. duplicate profiles from multiple appends) | Overwrite with `cat >` (not `>>`) to clean up; verify with `cat ~/.aws/config` |
 | `Command 'aws' not found` | AWS CLI not installed (not pre-installed on Ubuntu) | Install AWS CLI v2 from official zip or snap; see Step 6 |
+
+### OpenClaw Gateway (systemd)
+
+When running Agentic Vault as an OpenClaw plugin behind a systemd-managed gateway, the gateway process does not inherit your shell environment variables.
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| `Could not load credentials from any providers` | Gateway service missing `AWS_PROFILE` and related env vars | Add env vars to the correct systemd service (see below) |
+| Env vars set but still fails | System service (`/etc/systemd/system/`) and user service (`~/.config/systemd/user/`) both running; env set on wrong one | Check which service is active with `openclaw gateway status`; add env to that one |
+| `Chain ID mismatch: requested N but RPC returned M` | `rpcUrl` points to a different network than requested | Use the correct RPC for the target chain (e.g. mainnet vs Sepolia) |
+
+**Identifying the active gateway service:**
+
+```bash
+# Check which service file OpenClaw is using
+openclaw gateway status
+
+# Confirm whether system or user service (or both) is running
+systemctl is-active openclaw-gateway          # system service
+systemctl --user is-active openclaw-gateway   # user service
+```
+
+**Adding AWS env vars to the user service (most common):**
+
+`%h` is a systemd specifier that expands to the user's home directory at runtime.
+
+```bash
+mkdir -p ~/.config/systemd/user/openclaw-gateway.service.d
+
+cat > ~/.config/systemd/user/openclaw-gateway.service.d/10-aws.conf << 'EOF'
+[Service]
+Environment="AWS_PROFILE=rolesanywhere-kms"
+Environment="AWS_SDK_LOAD_CONFIG=1"
+Environment="AWS_CONFIG_FILE=%h/.aws/config"
+Environment="AWS_SHARED_CREDENTIALS_FILE=%h/.aws/credentials"
+EOF
+
+systemctl --user daemon-reload
+systemctl --user restart openclaw-gateway
+```
+
+**Adding AWS env vars to the system service:**
+
+For system-level services, use absolute paths (systemd `%h` is not available in system units):
+
+```bash
+sudo mkdir -p /etc/systemd/system/openclaw-gateway.service.d
+
+sudo tee /etc/systemd/system/openclaw-gateway.service.d/10-aws.conf << EOF
+[Service]
+Environment="AWS_PROFILE=rolesanywhere-kms"
+Environment="AWS_SDK_LOAD_CONFIG=1"
+Environment="AWS_CONFIG_FILE=/home/$(whoami)/.aws/config"
+Environment="AWS_SHARED_CREDENTIALS_FILE=/home/$(whoami)/.aws/credentials"
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl restart openclaw-gateway
+```
+
+**Verify env vars are loaded:**
+
+```bash
+# For user service
+systemctl --user show openclaw-gateway -p Environment \
+  | tr ' ' '\n' | grep 'AWS_'
+
+# For system service
+systemctl show openclaw-gateway -p Environment \
+  | tr ' ' '\n' | grep 'AWS_'
+```
+
+**If both system and user services are running, disable the unused one:**
+
+```bash
+# Keep user service, disable system service
+sudo systemctl disable --now openclaw-gateway
+sudo systemctl mask openclaw-gateway
+```

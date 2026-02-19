@@ -17,7 +17,7 @@
     "openclaw.plugin.json"
   ],
   "engines": {
-    "node": ">=24"
+    "node": ">=22"
   },
   "repository": {
     "type": "git",
@@ -48,7 +48,7 @@
     ]
   },
   "dependencies": {
-    "@agenticvault/agentic-vault": "~0.1.1"
+    "@agenticvault/agentic-vault": "~0.1.2"
   },
   "peerDependencies": {
     "@agenticvault/agentic-vault": "~0.1.2",

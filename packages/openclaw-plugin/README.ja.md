@@ -8,54 +8,77 @@
 
 ## インストール
 
-### OpenClaw ホスト設定経由（推奨）
+### クイックスタート（推奨）
 
-パッケージと peer dependency をインストールし、OpenClaw ホスト設定に登録します：
+パッケージをインストールし、OpenClaw extensions ディレクトリにコピーします：
 
 ```bash
-npm install @agenticvault/openclaw openclaw
+npm install @agenticvault/openclaw
+mkdir -p ~/.openclaw/extensions/agentic-vault
+cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
 ```
 
-### `plugins.load.paths` 経由（手動）
+OpenClaw は `~/.openclaw/extensions/` 内のプラグインを自動検出します。ディレクトリ名はマニフェスト `id`（`agentic-vault`）と一致させる必要があります。
 
-プラグインの読み込みを明示的に制御したい場合は、ローカルディレクトリにインストールし、そのパスを OpenClaw に指定します：
+### Tarball からインストール（ローカル node_modules 不要）
+
+プロジェクトレベルのインストールなしで直接ダウンロード・展開します：
 
 ```bash
-# ローカルディレクトリにインストール
-mkdir -p ./openclaw-plugins
-cd ./openclaw-plugins
+npm pack @agenticvault/openclaw --pack-destination /tmp
+mkdir -p ~/.openclaw/extensions/agentic-vault
+tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
+```
+
+### 開発モード（シンボリックリンク）
+
+プラグイン開発時は、extensions ディレクトリにシンボリックリンクを作成します：
+
+```bash
+mkdir -p ~/.openclaw/extensions
+ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
+```
+
+### `plugins.load.paths` 経由（上級者向け）
+
+プラグインの読み込みパスを完全に制御したい場合：
+
+```bash
+mkdir -p /home/user/my-workspace/.openclaw/extensions
+cd /home/user/my-workspace/.openclaw/extensions
 npm install @agenticvault/openclaw
 ```
 
-次に、OpenClaw ホスト設定にパスを追加します：
+次に、OpenClaw ホスト設定にパスを追加します（本番/デーモン環境では絶対パスを使用してください）：
 
 ```json
 {
   "plugins": {
     "load": {
-      "paths": ["./openclaw-plugins/node_modules/@agenticvault/openclaw"]
+      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/openclaw"]
     }
   }
 }
 ```
 
-> **ヒント**：本番環境では正確なバージョンを固定してください（`npm install @agenticvault/openclaw@0.1.1`）。予期しないアップグレードを防止します。
+> **ヒント**：本番環境では正確なバージョンを固定してください（`npm install @agenticvault/openclaw@0.1.2`）。予期しないアップグレードを防止します。
 
-> **既知の制限事項**：`openclaw plugins install @agenticvault/openclaw` はインストーラーの ID 不一致が発生する場合があります。上流で修正されるまでは、上記の方法でインストールしてください。
+> **既知の制限事項**：`openclaw plugins install`（ローカルパスや `--link` を含むすべてのバリアント）は unscoped npm パッケージ名から extension ID（`openclaw`）を導出しますが、マニフェスト `id`（`agentic-vault`）と一致しないため、設定キーの不一致が発生します。上流で修正されるまでは、上記の方法でインストールしてください。
 
 ## 設定
 
-OpenClaw ホスト設定にプラグインを登録します。entries キーはマニフェストの `id`（`"agentic-vault"`）と一致する必要があります：
+OpenClaw ホスト設定にプラグインを登録します。entries キーはマニフェストの `id`（`"agentic-vault"`）と一致する必要があります。設定で `plugins.allow` を使用している場合は、`"agentic-vault"` を追加してください：
 
 ```json
 {
   "plugins": {
+    "allow": ["agentic-vault"],
     "entries": {
       "agentic-vault": {
         "config": {
           "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
           "region": "us-east-1",
-          "policyConfigPath": "./policy.json",
+          "policyConfigPath": "/home/user/agentic-vault/policy.json",
           "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
         }
       }
@@ -112,6 +135,27 @@ OpenClaw ホスト設定にプラグインを登録します。entries キーは
 - **フェイルクローズ** -- 不明な calldata は常に拒否されます
 - **デュアルゲート生署名** -- `vault_sign_transaction` と `vault_sign_typed_data` はデフォルトで無効です。有効にするにはプラグイン設定で `enableUnsafeRawSign: true` を設定する必要があります
 - **監査証跡** -- すべての操作は構造化 JSON として記録されます
+
+## マルチエージェント環境の強化
+
+マルチエージェント環境では、vault ツールを指定された金融エージェントのみに制限します。非金融エージェントの `tools.deny` にすべての `vault_*` ツール名を追加してください：
+
+```json
+{
+  "agents": {
+    "general-assistant": {
+      "tools": {
+        "deny": [
+          "vault_get_address", "vault_health_check", "vault_get_balance",
+          "vault_sign_defi_call", "vault_sign_permit",
+          "vault_send_transfer", "vault_send_erc20_transfer",
+          "vault_sign_transaction", "vault_sign_typed_data"
+        ]
+      }
+    }
+  }
+}
+```
 
 ## ポリシー設定
 

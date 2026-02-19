@@ -6,54 +6,77 @@ OpenClaw plugin for [Agentic Vault](https://github.com/agenticvault/agentic-vaul
 
 ## Installation
 
-### Via OpenClaw Host Config (Recommended)
+### Quick Start (Recommended)
 
-Install the package and its peer dependency, then register it in your OpenClaw host config:
+Install the package and copy it to the OpenClaw extensions directory:
 
 ```bash
-npm install @agenticvault/openclaw openclaw
+npm install @agenticvault/openclaw
+mkdir -p ~/.openclaw/extensions/agentic-vault
+cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
 ```
 
-### Via `plugins.load.paths` (Manual)
+OpenClaw auto-discovers plugins in `~/.openclaw/extensions/`. The directory name must match the manifest `id` (`agentic-vault`).
 
-If you prefer explicit control over plugin loading, install the package to a local directory and point OpenClaw to it:
+### From Tarball (No Local node_modules)
+
+Download and extract directly without a project-level install:
 
 ```bash
-# Install to a local directory
-mkdir -p ./openclaw-plugins
-cd ./openclaw-plugins
+npm pack @agenticvault/openclaw --pack-destination /tmp
+mkdir -p ~/.openclaw/extensions/agentic-vault
+tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
+```
+
+### For Development (Symlink)
+
+During plugin development, symlink to the extensions directory:
+
+```bash
+mkdir -p ~/.openclaw/extensions
+ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
+```
+
+### Via `plugins.load.paths` (Advanced)
+
+For explicit control over plugin loading paths:
+
+```bash
+mkdir -p /home/user/my-workspace/.openclaw/extensions
+cd /home/user/my-workspace/.openclaw/extensions
 npm install @agenticvault/openclaw
 ```
 
-Then add the path to your OpenClaw host config:
+Then add to your OpenClaw host config (use absolute paths for production/daemon environments):
 
 ```json
 {
   "plugins": {
     "load": {
-      "paths": ["./openclaw-plugins/node_modules/@agenticvault/openclaw"]
+      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/openclaw"]
     }
   }
 }
 ```
 
-> **Tip**: Pin the exact version in production (`npm install @agenticvault/openclaw@0.1.1`) to avoid unexpected upgrades.
+> **Tip**: Pin the exact version in production (`npm install @agenticvault/openclaw@0.1.2`) to avoid unexpected upgrades.
 
-> **Known limitation**: `openclaw plugins install @agenticvault/openclaw` may encounter an installer ID mismatch. Use one of the methods above until this is resolved upstream.
+> **Known limitation**: `openclaw plugins install` (all variants including local path and `--link`) derives the extension ID from the unscoped npm package name (`openclaw`), which differs from the manifest `id` (`agentic-vault`). This causes a config key mismatch. Use the methods above until resolved upstream.
 
 ## Configuration
 
-Register the plugin in your OpenClaw host configuration. The entries key must match the manifest `id` (`"agentic-vault"`):
+Register the plugin in your OpenClaw host configuration. The entries key must match the manifest `id` (`"agentic-vault"`). If your OpenClaw config uses `plugins.allow`, include `"agentic-vault"` in the list:
 
 ```json
 {
   "plugins": {
+    "allow": ["agentic-vault"],
     "entries": {
       "agentic-vault": {
         "config": {
           "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
           "region": "us-east-1",
-          "policyConfigPath": "./policy.json",
+          "policyConfigPath": "/home/user/agentic-vault/policy.json",
           "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY"
         }
       }
@@ -110,6 +133,27 @@ The plugin now uses the official `openclaw/plugin-sdk` types and can be discover
 - **Fail-closed** -- unknown calldata is always rejected
 - **Dual-gated raw signing** -- `vault_sign_transaction` and `vault_sign_typed_data` are disabled by default; enabling requires `enableUnsafeRawSign: true` in the plugin config
 - **Audit trail** -- every operation is logged as structured JSON
+
+## Multi-Agent Hardening
+
+In multi-agent environments, restrict vault tools to only the designated financial agent. Add all `vault_*` tool names to `tools.deny` in non-financial agents:
+
+```json
+{
+  "agents": {
+    "general-assistant": {
+      "tools": {
+        "deny": [
+          "vault_get_address", "vault_health_check", "vault_get_balance",
+          "vault_sign_defi_call", "vault_sign_permit",
+          "vault_send_transfer", "vault_send_erc20_transfer",
+          "vault_sign_transaction", "vault_sign_typed_data"
+        ]
+      }
+    }
+  }
+}
+```
 
 ## Policy Configuration
 

@@ -270,7 +270,7 @@ sudo apt install -y nodejs
 
 # Agentic Vault (openclaw is optional — only if using OpenClaw plugin)
 npm install -g @agenticvault/agentic-vault
-# npm install -g @agenticvault/openclaw  # optional
+# npm install -g @agenticvault/agentic-vault-openclaw  # optional
 
 # AWS CLI v2 (required for verification; not pre-installed on Ubuntu)
 # See Gotcha 5 in Troubleshooting if `aws` command not found

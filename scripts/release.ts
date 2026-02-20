@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = resolve(__dirname, '..');
 const CORE_PKG = '@agenticvault/agentic-vault';
-const OPENCLAW_PKG = '@agenticvault/openclaw';
+const OPENCLAW_PKG = '@agenticvault/agentic-vault-openclaw';
 const OPENCLAW_DIR = 'packages/openclaw-plugin';
 const PLUGIN_MANIFESTS = ['.claude-plugin/plugin.json', `${OPENCLAW_DIR}/openclaw.plugin.json`];
 

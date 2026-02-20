@@ -67,7 +67,7 @@ function makePkgJson(version: string, extra?: Record<string, unknown>): string {
 
 function makeOcPkgJson(version: string, peerDep?: string): string {
   return JSON.stringify({
-    name: '@agenticvault/openclaw',
+    name: '@agenticvault/agentic-vault-openclaw',
     version,
     peerDependencies: { '@agenticvault/agentic-vault': peerDep ?? `~${version}` },
   });
@@ -114,7 +114,7 @@ describe('assertShellSafe', () => {
     'v0.1.0',
     'openclaw-v0.1.0',
     '@agenticvault/agentic-vault',
-    'agenticvault-openclaw-0.1.0.tgz',
+    'agenticvault-agentic-vault-openclaw-0.1.0.tgz',
     '~0.1.0',
   ])('should accept safe value: %s', (value) => {
     expect(() => assertShellSafe(value, 'test')).not.toThrow();
@@ -221,18 +221,18 @@ describe('getOpenClawVersion', () => {
 
 describe('findTarball', () => {
   it('should return full path when .tgz files exist', () => {
-    mockReaddirSync.mockReturnValue(['agenticvault-openclaw-0.1.0.tgz'] as never);
+    mockReaddirSync.mockReturnValue(['agenticvault-agentic-vault-openclaw-0.1.0.tgz'] as never);
     const result = findTarball('/fake/dir');
-    expect(result).toBe(resolve('/fake/dir', 'agenticvault-openclaw-0.1.0.tgz'));
+    expect(result).toBe(resolve('/fake/dir', 'agenticvault-agentic-vault-openclaw-0.1.0.tgz'));
   });
 
   it('should return first tarball when multiple exist', () => {
     mockReaddirSync.mockReturnValue([
-      'agenticvault-openclaw-0.0.9.tgz',
-      'agenticvault-openclaw-0.1.0.tgz',
+      'agenticvault-agentic-vault-openclaw-0.0.9.tgz',
+      'agenticvault-agentic-vault-openclaw-0.1.0.tgz',
     ] as never);
     const result = findTarball('/fake/dir');
-    expect(result).toBe(resolve('/fake/dir', 'agenticvault-openclaw-0.0.9.tgz'));
+    expect(result).toBe(resolve('/fake/dir', 'agenticvault-agentic-vault-openclaw-0.0.9.tgz'));
   });
 
   it('should return null when no .tgz files exist', () => {
@@ -408,7 +408,7 @@ describe('firstPublish', () => {
       .mockReturnValueOnce(makeOcPkgJson('0.1.0'));
 
     // Mock readdirSync to return a tarball after pnpm pack
-    mockReaddirSync.mockReturnValue(['agenticvault-openclaw-0.1.0.tgz'] as never);
+    mockReaddirSync.mockReturnValue(['agenticvault-agentic-vault-openclaw-0.1.0.tgz'] as never);
 
     firstPublish(opts, false);
 
@@ -441,7 +441,7 @@ describe('firstPublish', () => {
       .mockReturnValueOnce(makeOcPkgJson('0.1.0'));
 
     // Mock readdirSync to return a tarball after pnpm pack
-    mockReaddirSync.mockReturnValue(['agenticvault-openclaw-0.1.0.tgz'] as never);
+    mockReaddirSync.mockReturnValue(['agenticvault-agentic-vault-openclaw-0.1.0.tgz'] as never);
 
     firstPublish(opts, true);
 
@@ -485,7 +485,7 @@ describe('bump', () => {
   it('should update versions in package.json files and plugin manifests', () => {
     const rootPkg = { name: '@agenticvault/agentic-vault', version: '0.1.0' };
     const ocPkg = {
-      name: '@agenticvault/openclaw',
+      name: '@agenticvault/agentic-vault-openclaw',
       version: '0.1.0',
       peerDependencies: { '@agenticvault/agentic-vault': '~0.1.0' },
     };
@@ -622,7 +622,7 @@ describe('tag', () => {
     tag(opts, undefined, false);
 
     expect(calls).toContain('git tag -a v0.1.0 -m "Release @agenticvault/agentic-vault@0.1.0"');
-    expect(calls).toContain('git tag -a openclaw-v0.1.0 -m "Release @agenticvault/openclaw@0.1.0"');
+    expect(calls).toContain('git tag -a openclaw-v0.1.0 -m "Release @agenticvault/agentic-vault-openclaw@0.1.0"');
     expect(calls).toContain('git push origin v0.1.0 openclaw-v0.1.0');
     expect(opts.output.some((line) => line.includes('Pushed tags'))).toBe(true);
   });
@@ -745,7 +745,7 @@ describe('tag', () => {
 
     // Should create tags with new version
     expect(calls).toContain('git tag -a v0.2.0 -m "Release @agenticvault/agentic-vault@0.2.0"');
-    expect(calls).toContain('git tag -a openclaw-v0.2.0 -m "Release @agenticvault/openclaw@0.2.0"');
+    expect(calls).toContain('git tag -a openclaw-v0.2.0 -m "Release @agenticvault/agentic-vault-openclaw@0.2.0"');
 
     // Should push commit + tags with explicit refs
     expect(calls).toContain('git push origin HEAD v0.2.0 openclaw-v0.2.0');

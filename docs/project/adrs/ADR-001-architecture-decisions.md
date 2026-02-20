@@ -171,7 +171,7 @@ Agentic Vault Wallet 由既有 `@sd0xdev/vaultsign` v0.2.0 提取為獨立專案
 ### Consequences
 
 - 正面：在安全控制下進入 OpenClaw 生態系，擴大產品觸及範圍
-- 負面：需額外維護獨立套件（`@agenticvault/openclaw`）
+- 負面：需額外維護獨立套件（`@agenticvault/agentic-vault-openclaw`）
 - 緩解：Thin adapter pattern 降低維護成本；CI 獨立觸發
 
 ---

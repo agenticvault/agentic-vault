@@ -34,6 +34,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **OpenClaw users**: 3 new tools are registered by default. To use balance/transfer tools, add `rpcUrl` to your plugin config. Existing tools work without changes.
 - **Library users**: All existing exports are preserved. New exports (`ViemRpcProvider`, `WorkflowRpcProvider`, workflow functions) are additive only.
 
+## [0.1.3] - OpenClaw Plugin Rename
+
+### Breaking Changes (OpenClaw plugin only)
+
+- **Package renamed**: `@agenticvault/openclaw` → `@agenticvault/agentic-vault-openclaw`
+- **Extension ID changed**: `agentic-vault` → `agentic-vault-openclaw`
+- **Config key changed**: `plugins.entries.agentic-vault` → `plugins.entries.agentic-vault-openclaw`
+- **Extension path changed**: `~/.openclaw/extensions/agentic-vault/` → `~/.openclaw/extensions/agentic-vault-openclaw/`
+
+### Migration
+
+1. Update install: `npm install @agenticvault/agentic-vault-openclaw`
+2. Move extension dir: `mv ~/.openclaw/extensions/agentic-vault ~/.openclaw/extensions/agentic-vault-openclaw`
+3. Update config key in `~/.openclaw/config.json`
+4. (Optional) Re-install: `npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup`
+
 ## [0.1.0] - 2026-02-13
 
 ### Added
@@ -79,7 +95,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Decode command (calldata hex to intent JSON)
 
 #### OpenClaw Plugin (Phase 8)
-- `@agenticvault/openclaw` package
+- `@agenticvault/agentic-vault-openclaw` package
 - 4 safe tools: `vault_get_address`, `vault_health_check`, `vault_sign_defi_call`, `vault_sign_permit`
 - 2 dual-gated tools: `vault_sign_transaction`, `vault_sign_typed_data` (requires `enableUnsafeRawSign`)
 - Claude Code plugin manifest (`.claude-plugin/plugin.json`) with 4 skills

@@ -22,9 +22,9 @@ describe('install.ts', () => {
   // ── resolveTargetDir ──────────────────────────────────────────────────
 
   describe('resolveTargetDir', () => {
-    it('returns default path (~/.openclaw/extensions/agentic-vault) when no override', () => {
+    it('returns default path (~/.openclaw/extensions/agentic-vault-openclaw) when no override', () => {
       const result = resolveTargetDir();
-      expect(result).toBe(join(homedir(), '.openclaw', 'extensions', 'agentic-vault'));
+      expect(result).toBe(join(homedir(), '.openclaw', 'extensions', 'agentic-vault-openclaw'));
     });
 
     it('returns the override path when provided', () => {
@@ -116,17 +116,17 @@ describe('install.ts', () => {
       const parsed = JSON.parse(snippet);
 
       expect(parsed).toHaveProperty('plugins.allow');
-      expect(parsed.plugins.allow).toContain('agentic-vault');
-      expect(parsed).toHaveProperty('plugins.entries.agentic-vault.config.keyId');
-      expect(parsed).toHaveProperty('plugins.entries.agentic-vault.config.region');
+      expect(parsed.plugins.allow).toContain('agentic-vault-openclaw');
+      expect(parsed).toHaveProperty('plugins.entries.agentic-vault-openclaw.config.keyId');
+      expect(parsed).toHaveProperty('plugins.entries.agentic-vault-openclaw.config.region');
     });
 
     it('uses placeholder values for keyId and region', () => {
       const snippet = generateConfigSnippet();
       const parsed = JSON.parse(snippet);
 
-      expect(parsed.plugins.entries['agentic-vault'].config.keyId).toContain('<');
-      expect(parsed.plugins.entries['agentic-vault'].config.region).toContain('<');
+      expect(parsed.plugins.entries['agentic-vault-openclaw'].config.keyId).toContain('<');
+      expect(parsed.plugins.entries['agentic-vault-openclaw'].config.region).toContain('<');
     });
   });
 
@@ -153,7 +153,7 @@ describe('install.ts', () => {
       mkdirSync(join(sourceDir, 'dist'), { recursive: true });
       writeFileSync(join(sourceDir, 'dist', 'index.js'), '// built');
       writeFileSync(join(sourceDir, 'package.json'), '{"name":"test"}');
-      writeFileSync(join(sourceDir, 'openclaw.plugin.json'), '{"id":"agentic-vault"}');
+      writeFileSync(join(sourceDir, 'openclaw.plugin.json'), '{"id":"agentic-vault-openclaw"}');
 
       const output: string[] = [];
       const write = (msg: string) => { output.push(msg); };
@@ -172,7 +172,7 @@ describe('install.ts', () => {
       expect(combined).toContain('package.json');
       expect(combined).toContain('openclaw.plugin.json');
       // Should print config snippet
-      expect(combined).toContain('"agentic-vault"');
+      expect(combined).toContain('"agentic-vault-openclaw"');
       // Should print next steps
       expect(combined).toContain('Next steps');
       // Target dir should have files

@@ -1,6 +1,6 @@
-<!-- Source: packages/openclaw-plugin/README.md | Last synced: 2026-02-19 -->
+<!-- Source: packages/openclaw-plugin/README.md | Last synced: 2026-02-20 -->
 
-# @agenticvault/openclaw
+# @agenticvault/agentic-vault-openclaw
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | 한국어
 
@@ -11,33 +11,33 @@
 ### 원커맨드 설치 (권장)
 
 ```bash
-npx -y -p @agenticvault/openclaw agentic-vault-setup
+npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
 ```
 
-이 명령은 플러그인 파일을 `~/.openclaw/extensions/agentic-vault/`에 복사하고, 런타임 종속성을 설치하며, 설정 스니펫을 출력합니다. 화면의 안내에 따라 설정을 완료하세요.
+이 명령은 플러그인 파일을 `~/.openclaw/extensions/agentic-vault-openclaw/`에 복사하고, 런타임 종속성을 설치하며, 설정 스니펫을 출력합니다. 화면의 안내에 따라 설정을 완료하세요.
 
 ### 빠른 시작 (수동)
 
 패키지를 설치한 후 OpenClaw extensions 디렉토리에 복사합니다:
 
 ```bash
-npm install @agenticvault/openclaw
-mkdir -p ~/.openclaw/extensions/agentic-vault
-cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
-cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
+npm install @agenticvault/agentic-vault-openclaw
+mkdir -p ~/.openclaw/extensions/agentic-vault-openclaw
+cp -r ./node_modules/@agenticvault/agentic-vault-openclaw/* ~/.openclaw/extensions/agentic-vault-openclaw/
+cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ignore-scripts
 ```
 
-OpenClaw은 `~/.openclaw/extensions/` 내의 플러그인을 자동으로 감지합니다. 디렉토리 이름은 매니페스트 `id` (`agentic-vault`)와 일치해야 합니다.
+OpenClaw은 `~/.openclaw/extensions/` 내의 플러그인을 자동으로 감지합니다. 디렉토리 이름은 매니페스트 `id` (`agentic-vault-openclaw`)와 일치해야 합니다.
 
 ### Tarball에서 설치 (로컬 node_modules 불필요)
 
 프로젝트 레벨 설치 없이 직접 다운로드하여 압축 해제합니다:
 
 ```bash
-npm pack @agenticvault/openclaw --pack-destination /tmp
-mkdir -p ~/.openclaw/extensions/agentic-vault
-tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
-cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
+npm pack @agenticvault/agentic-vault-openclaw --pack-destination /tmp
+mkdir -p ~/.openclaw/extensions/agentic-vault-openclaw
+tar -xzf /tmp/agenticvault-agentic-vault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault-openclaw --strip-components=1
+cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ignore-scripts
 ```
 
 ### 개발 모드 (Symlink)
@@ -46,7 +46,7 @@ cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scrip
 
 ```bash
 mkdir -p ~/.openclaw/extensions
-ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
+ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault-openclaw
 ```
 
 ### `plugins.load.paths`를 통한 설치 (고급)
@@ -56,7 +56,7 @@ ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
 ```bash
 mkdir -p /home/user/my-workspace/.openclaw/extensions
 cd /home/user/my-workspace/.openclaw/extensions
-npm install @agenticvault/openclaw
+npm install @agenticvault/agentic-vault-openclaw
 ```
 
 그런 다음 OpenClaw 호스트 설정에 경로를 추가합니다 (프로덕션/데몬 환경에서는 절대 경로를 사용하세요):
@@ -65,26 +65,24 @@ npm install @agenticvault/openclaw
 {
   "plugins": {
     "load": {
-      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/openclaw"]
+      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/agentic-vault-openclaw"]
     }
   }
 }
 ```
 
-> **팁**: 프로덕션 환경에서는 정확한 버전을 고정하세요 (`npm install @agenticvault/openclaw@0.1.2`). 예기치 않은 업그레이드를 방지합니다.
-
-> **알려진 제한**: `openclaw plugins install` (로컬 경로 및 `--link`를 포함한 모든 변형)은 unscoped npm 패키지 이름에서 extension ID (`openclaw`)를 유도하며, 이는 매니페스트 `id` (`agentic-vault`)와 일치하지 않아 설정 키 충돌이 발생합니다. 업스트림에서 수정될 때까지 위의 방법을 사용하여 설치하세요.
+> **팁**: 프로덕션 환경에서는 정확한 버전을 고정하세요 (`npm install @agenticvault/agentic-vault-openclaw@0.1.3`). 예기치 않은 업그레이드를 방지합니다.
 
 ## 설정
 
-OpenClaw 호스트 설정에서 플러그인을 등록합니다. entries 키는 매니페스트 `id` (`"agentic-vault"`)와 일치해야 합니다. 설정에서 `plugins.allow`를 사용하는 경우 `"agentic-vault"`를 포함하세요:
+OpenClaw 호스트 설정에서 플러그인을 등록합니다. entries 키는 매니페스트 `id` (`"agentic-vault-openclaw"`)와 일치해야 합니다. 설정에서 `plugins.allow`를 사용하는 경우 `"agentic-vault-openclaw"`를 포함하세요:
 
 ```json
 {
   "plugins": {
-    "allow": ["agentic-vault"],
+    "allow": ["agentic-vault-openclaw"],
     "entries": {
-      "agentic-vault": {
+      "agentic-vault-openclaw": {
         "config": {
           "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
           "region": "us-east-1",
@@ -133,7 +131,7 @@ OpenClaw 호스트 설정에서 플러그인을 등록합니다. entries 키는 
 
 | 변경 전 (프리릴리스) | 변경 후 (현재) |
 |---------------------|---------------|
-| `import { register } from "@agenticvault/openclaw"` | `export default function(api)` |
+| `import { register } from "@agenticvault/agentic-vault-openclaw"` | `export default function(api)` |
 | `register(api, config)` | 설정은 `api.pluginConfig`에서 읽음 |
 | `api.registerTool(name, config, handler)` | `api.registerTool({ name, description, parameters, label, execute })` |
 

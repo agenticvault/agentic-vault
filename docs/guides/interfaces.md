@@ -132,10 +132,10 @@ Add to your MCP config (see [`.mcp.json.example`](../../.mcp.json.example)):
 
 ## 4. OpenClaw Plugin
 
-Install [`@agenticvault/openclaw`](../../packages/openclaw-plugin/) to use agentic-vault as an OpenClaw agent tool:
+Install [`@agenticvault/agentic-vault-openclaw`](../../packages/openclaw-plugin/) to use agentic-vault as an OpenClaw agent tool:
 
 ```bash
-npm install @agenticvault/openclaw @agenticvault/agentic-vault
+npm install @agenticvault/agentic-vault-openclaw @agenticvault/agentic-vault
 ```
 
 7 safe tools are always registered (`vault_get_address`, `vault_health_check`, `vault_sign_defi_call`, `vault_sign_permit`, `vault_get_balance`, `vault_send_transfer`, `vault_send_erc20_transfer`). 2 additional tools (`vault_sign_transaction`, `vault_sign_typed_data`) require `enableUnsafeRawSign: true` in config. Balance and transfer tools require `rpcUrl` in the plugin config.

@@ -1,6 +1,6 @@
-<!-- Source: packages/openclaw-plugin/README.md | Last synced: 2026-02-19 -->
+<!-- Source: packages/openclaw-plugin/README.md | Last synced: 2026-02-20 -->
 
-# @agenticvault/openclaw
+# @agenticvault/agentic-vault-openclaw
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | 日本語 | [한국어](README.ko.md)
 
@@ -11,33 +11,33 @@
 ### ワンコマンドインストール（推奨）
 
 ```bash
-npx -y -p @agenticvault/openclaw agentic-vault-setup
+npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
 ```
 
-このコマンドはプラグインファイルを `~/.openclaw/extensions/agentic-vault/` にコピーし、ランタイム依存関係をインストールし、設定スニペットを出力します。画面の指示に従ってセットアップを完了してください。
+このコマンドはプラグインファイルを `~/.openclaw/extensions/agentic-vault-openclaw/` にコピーし、ランタイム依存関係をインストールし、設定スニペットを出力します。画面の指示に従ってセットアップを完了してください。
 
 ### クイックスタート（手動）
 
 パッケージをインストールし、OpenClaw extensions ディレクトリにコピーします：
 
 ```bash
-npm install @agenticvault/openclaw
-mkdir -p ~/.openclaw/extensions/agentic-vault
-cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
-cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
+npm install @agenticvault/agentic-vault-openclaw
+mkdir -p ~/.openclaw/extensions/agentic-vault-openclaw
+cp -r ./node_modules/@agenticvault/agentic-vault-openclaw/* ~/.openclaw/extensions/agentic-vault-openclaw/
+cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ignore-scripts
 ```
 
-OpenClaw は `~/.openclaw/extensions/` 内のプラグインを自動検出します。ディレクトリ名はマニフェスト `id`（`agentic-vault`）と一致させる必要があります。
+OpenClaw は `~/.openclaw/extensions/` 内のプラグインを自動検出します。ディレクトリ名はマニフェスト `id`（`agentic-vault-openclaw`）と一致させる必要があります。
 
 ### Tarball からインストール（ローカル node_modules 不要）
 
 プロジェクトレベルのインストールなしで直接ダウンロード・展開します：
 
 ```bash
-npm pack @agenticvault/openclaw --pack-destination /tmp
-mkdir -p ~/.openclaw/extensions/agentic-vault
-tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
-cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
+npm pack @agenticvault/agentic-vault-openclaw --pack-destination /tmp
+mkdir -p ~/.openclaw/extensions/agentic-vault-openclaw
+tar -xzf /tmp/agenticvault-agentic-vault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault-openclaw --strip-components=1
+cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ignore-scripts
 ```
 
 ### 開発モード（シンボリックリンク）
@@ -46,7 +46,7 @@ cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scrip
 
 ```bash
 mkdir -p ~/.openclaw/extensions
-ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
+ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault-openclaw
 ```
 
 ### `plugins.load.paths` 経由（上級者向け）
@@ -56,7 +56,7 @@ ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
 ```bash
 mkdir -p /home/user/my-workspace/.openclaw/extensions
 cd /home/user/my-workspace/.openclaw/extensions
-npm install @agenticvault/openclaw
+npm install @agenticvault/agentic-vault-openclaw
 ```
 
 次に、OpenClaw ホスト設定にパスを追加します（本番/デーモン環境では絶対パスを使用してください）：
@@ -65,26 +65,24 @@ npm install @agenticvault/openclaw
 {
   "plugins": {
     "load": {
-      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/openclaw"]
+      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/agentic-vault-openclaw"]
     }
   }
 }
 ```
 
-> **ヒント**：本番環境では正確なバージョンを固定してください（`npm install @agenticvault/openclaw@0.1.2`）。予期しないアップグレードを防止します。
-
-> **既知の制限事項**：`openclaw plugins install`（ローカルパスや `--link` を含むすべてのバリアント）は unscoped npm パッケージ名から extension ID（`openclaw`）を導出しますが、マニフェスト `id`（`agentic-vault`）と一致しないため、設定キーの不一致が発生します。上流で修正されるまでは、上記の方法でインストールしてください。
+> **ヒント**：本番環境では正確なバージョンを固定してください（`npm install @agenticvault/agentic-vault-openclaw@0.1.3`）。予期しないアップグレードを防止します。
 
 ## 設定
 
-OpenClaw ホスト設定にプラグインを登録します。entries キーはマニフェストの `id`（`"agentic-vault"`）と一致する必要があります。設定で `plugins.allow` を使用している場合は、`"agentic-vault"` を追加してください：
+OpenClaw ホスト設定にプラグインを登録します。entries キーはマニフェストの `id`（`"agentic-vault-openclaw"`）と一致する必要があります。設定で `plugins.allow` を使用している場合は、`"agentic-vault-openclaw"` を追加してください：
 
 ```json
 {
   "plugins": {
-    "allow": ["agentic-vault"],
+    "allow": ["agentic-vault-openclaw"],
     "entries": {
-      "agentic-vault": {
+      "agentic-vault-openclaw": {
         "config": {
           "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
           "region": "us-east-1",
@@ -133,7 +131,7 @@ OpenClaw ホスト設定にプラグインを登録します。entries キーは
 
 | 変更前（プレリリース） | 変更後（現在） |
 |------------------------|---------------|
-| `import { register } from "@agenticvault/openclaw"` | `export default function(api)` |
+| `import { register } from "@agenticvault/agentic-vault-openclaw"` | `export default function(api)` |
 | `register(api, config)` | 設定は `api.pluginConfig` から読み取り |
 | `api.registerTool(name, config, handler)` | `api.registerTool({ name, description, parameters, label, execute })` |
 

@@ -1,4 +1,4 @@
-# @agenticvault/openclaw
+# @agenticvault/agentic-vault-openclaw
 
 English | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
@@ -9,33 +9,33 @@ OpenClaw plugin for [Agentic Vault](https://github.com/agenticvault/agentic-vaul
 ### One-Command Install (Recommended)
 
 ```bash
-npx -y -p @agenticvault/openclaw agentic-vault-setup
+npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
 ```
 
-This copies the plugin files to `~/.openclaw/extensions/agentic-vault/`, installs runtime dependencies, and prints a config snippet. Follow the on-screen instructions to complete setup.
+This copies the plugin files to `~/.openclaw/extensions/agentic-vault-openclaw/`, installs runtime dependencies, and prints a config snippet. Follow the on-screen instructions to complete setup.
 
 ### Quick Start (Manual)
 
 Install the package and copy it to the OpenClaw extensions directory:
 
 ```bash
-npm install @agenticvault/openclaw
-mkdir -p ~/.openclaw/extensions/agentic-vault
-cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
-cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
+npm install @agenticvault/agentic-vault-openclaw
+mkdir -p ~/.openclaw/extensions/agentic-vault-openclaw
+cp -r ./node_modules/@agenticvault/agentic-vault-openclaw/* ~/.openclaw/extensions/agentic-vault-openclaw/
+cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ignore-scripts
 ```
 
-OpenClaw auto-discovers plugins in `~/.openclaw/extensions/`. The directory name must match the manifest `id` (`agentic-vault`).
+OpenClaw auto-discovers plugins in `~/.openclaw/extensions/`. The directory name must match the manifest `id` (`agentic-vault-openclaw`).
 
 ### From Tarball (No Local node_modules)
 
 Download and extract directly without a project-level install:
 
 ```bash
-npm pack @agenticvault/openclaw --pack-destination /tmp
-mkdir -p ~/.openclaw/extensions/agentic-vault
-tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
-cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
+npm pack @agenticvault/agentic-vault-openclaw --pack-destination /tmp
+mkdir -p ~/.openclaw/extensions/agentic-vault-openclaw
+tar -xzf /tmp/agenticvault-agentic-vault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault-openclaw --strip-components=1
+cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ignore-scripts
 ```
 
 ### For Development (Symlink)
@@ -44,7 +44,7 @@ During plugin development, symlink to the extensions directory:
 
 ```bash
 mkdir -p ~/.openclaw/extensions
-ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
+ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault-openclaw
 ```
 
 ### Via `plugins.load.paths` (Advanced)
@@ -54,7 +54,7 @@ For explicit control over plugin loading paths:
 ```bash
 mkdir -p /home/user/my-workspace/.openclaw/extensions
 cd /home/user/my-workspace/.openclaw/extensions
-npm install @agenticvault/openclaw
+npm install @agenticvault/agentic-vault-openclaw
 ```
 
 Then add to your OpenClaw host config (use absolute paths for production/daemon environments):
@@ -63,26 +63,24 @@ Then add to your OpenClaw host config (use absolute paths for production/daemon 
 {
   "plugins": {
     "load": {
-      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/openclaw"]
+      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/agentic-vault-openclaw"]
     }
   }
 }
 ```
 
-> **Tip**: Pin the exact version in production (`npm install @agenticvault/openclaw@0.1.2`) to avoid unexpected upgrades.
-
-> **Known limitation**: `openclaw plugins install` (all variants including local path and `--link`) derives the extension ID from the unscoped npm package name (`openclaw`), which differs from the manifest `id` (`agentic-vault`). This causes a config key mismatch. Use the methods above until resolved upstream.
+> **Tip**: Pin the exact version in production (`npm install @agenticvault/agentic-vault-openclaw@0.1.3`) to avoid unexpected upgrades.
 
 ## Configuration
 
-Register the plugin in your OpenClaw host configuration. The entries key must match the manifest `id` (`"agentic-vault"`). If your OpenClaw config uses `plugins.allow`, include `"agentic-vault"` in the list:
+Register the plugin in your OpenClaw host configuration. The entries key must match the manifest `id` (`"agentic-vault-openclaw"`). If your OpenClaw config uses `plugins.allow`, include `"agentic-vault-openclaw"` in the list:
 
 ```json
 {
   "plugins": {
-    "allow": ["agentic-vault"],
+    "allow": ["agentic-vault-openclaw"],
     "entries": {
-      "agentic-vault": {
+      "agentic-vault-openclaw": {
         "config": {
           "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
           "region": "us-east-1",
@@ -131,7 +129,7 @@ The plugin entry point changed from the pre-release `register(api, config)` to t
 
 | Before (pre-release) | After (current) |
 |----------------------|-----------------|
-| `import { register } from "@agenticvault/openclaw"` | `export default function(api)` |
+| `import { register } from "@agenticvault/agentic-vault-openclaw"` | `export default function(api)` |
 | `register(api, config)` | Config read from `api.pluginConfig` |
 | `api.registerTool(name, config, handler)` | `api.registerTool({ name, description, parameters, label, execute })` |
 

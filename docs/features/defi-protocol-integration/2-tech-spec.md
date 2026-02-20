@@ -21,7 +21,7 @@ The protocol decoder and policy engine are **interface-agnostic**. Phase 6 extra
 | --- | --- | --- | --- |
 | Human (CLI) [Phase 6b] | `agentic-vault sign` | Interactive CLI | Same decode+policy+sign pipeline, human-readable output |
 | AI Agent (MCP) | MCP `sign_defi_call` / `sign_swap` | MCP transport | Full decode+policy+sign pipeline |
-| AI Agent (OpenClaw) [Phase 8] | `@agenticvault/openclaw` | OpenClaw plugin `api.registerTool()` | Same workflow pipeline, OpenClaw-native tool registration |
+| AI Agent (OpenClaw) [Phase 8] | `@agenticvault/agentic-vault-openclaw` | OpenClaw plugin `api.registerTool()` | Same workflow pipeline, OpenClaw-native tool registration |
 | Developer (SDK) | `@agenticvault/agentic-vault/protocols` | TypeScript SDK | Dispatcher, PolicyEngine, Decoders — no MCP/CLI pulled (Workflows added in Phase 6a) |
 | Claude Code (skills) | Skills → MCP tools | Skill markdown | Governance-consistent signing |
 | Backend service | `./protocols` + `.` (signer) | TypeScript SDK | Custom orchestration without MCP |
@@ -59,7 +59,7 @@ The protocol decoder and policy engine are **interface-agnostic**. Phase 6 extra
 │  │ sign_permit │ MCP Server      │  │ get-address │ health │ mcp  │ │
 │  └──────────────┬────────────────┘  └──────────┬─────────────────┘ │
 │                                                                     │
-│  ┌── OpenClaw (@agenticvault/openclaw) [Phase 8] ────────┐ │
+│  ┌── OpenClaw (@agenticvault/agentic-vault-openclaw) [Phase 8] ────────┐ │
 │  │ vault_sign_defi_call │ vault_sign_permit │ vault_get_address   │ │
 │  │ vault_health_check │ api.registerTool()                        │ │
 │  └──────────────┬─────────────────────────────────────────────────┘ │
@@ -169,7 +169,7 @@ src/cli/                          # Layer 3: CLI interface adapter [Phase 6b+7]
 | `src/protocols/**` | `viem`, internal protocol modules, `src/core/**` (direct) | `@modelcontextprotocol/*`, `src/agentic/**` |
 | `src/agentic/**` | `src/index.js` (root) + `src/protocols/index.js` (via relative path) | Direct `src/core/**`, `src/providers/**` |
 | `src/core/**` | `viem`, internal core modules | `src/agentic/**`, `src/protocols/**` |
-| `@agenticvault/openclaw` [Phase 8] | `@agenticvault/agentic-vault` (root) + `@agenticvault/agentic-vault/protocols` + `openclaw/plugin-sdk` | Internal `src/` paths, `@modelcontextprotocol/*` |
+| `@agenticvault/agentic-vault-openclaw` [Phase 8] | `@agenticvault/agentic-vault` (root) + `@agenticvault/agentic-vault/protocols` + `openclaw/plugin-sdk` | Internal `src/` paths, `@modelcontextprotocol/*` |
 
 The trust boundary test (`test/unit/agentic/trust-boundary.test.ts`) resolves each relative import path and checks against two allowed targets:
 
@@ -1316,13 +1316,13 @@ agentic-vault sign --yes --chain-id 1 ...
 > ADR-001 Decision 4 修訂：Phase 1 blanket defer → Phase 1.5 controlled launch
 > **Phase 8.5 (2026-02-19)**: 從自定義 API 遷移至官方 `openclaw/plugin-sdk` contract
 
-OpenClaw plugin 作為獨立 npm 套件（`@agenticvault/openclaw`），直接 import workflow layer，不透過 subprocess 或 MCP bridge。
+OpenClaw plugin 作為獨立 npm 套件（`@agenticvault/agentic-vault-openclaw`），直接 import workflow layer，不透過 subprocess 或 MCP bridge。
 
 #### Architecture
 
 ```
 OpenClaw Gateway
-  └── @agenticvault/openclaw (thin adapter)
+  └── @agenticvault/agentic-vault-openclaw (thin adapter)
         ├── import { signDefiCall, signPermit, ... } from '@agenticvault/agentic-vault/protocols'
         ├── import { createSigningProvider, EvmSignerAdapter } from '@agenticvault/agentic-vault'
         ├── import type { OpenClawPluginApi } from 'openclaw/plugin-sdk'
@@ -1334,7 +1334,7 @@ OpenClaw Gateway
 ```
 pnpm-workspace.yaml              # packages: ['packages/*']
 packages/openclaw-plugin/
-├── package.json              # @agenticvault/openclaw
+├── package.json              # @agenticvault/agentic-vault-openclaw
 ├── tsconfig.json
 ├── src/
 │   ├── index.ts              # export default function(api) — OpenClaw plugin lifecycle
@@ -1436,7 +1436,7 @@ api.registerTool({ name: 'vault_sign_transaction', ... } as AnyAgentTool, { opti
 ```json
 // openclaw.plugin.json
 {
-  "id": "agentic-vault",
+  "id": "agentic-vault-openclaw",
   "configSchema": {
     "type": "object",
     "properties": {
@@ -1457,10 +1457,10 @@ User configures in OpenClaw config:
 {
   "plugins": {
     "load": {
-      "paths": ["/absolute/path/to/node_modules/@agenticvault/openclaw"]
+      "paths": ["/absolute/path/to/node_modules/@agenticvault/agentic-vault-openclaw"]
     },
     "entries": {
-      "agentic-vault": {
+      "agentic-vault-openclaw": {
         "enabled": true,
         "config": {
           "keyId": "arn:aws:kms:us-east-1:123:key/xxx",
@@ -1478,13 +1478,13 @@ AWS credentials via host's default credential chain（與 CLI/MCP 一致）。
 
 #### Installation Paths
 
-> **已知限制 (2026-02-19)**: OpenClaw installer 使用 scope-strip 推導 plugin ID（`@agenticvault/openclaw` → `openclaw`），與 manifest `id: "agentic-vault"` 不一致。目前建議使用 `plugins.load.paths`。
+> **v0.1.3 修正**: npm package 已改名為 `@agenticvault/agentic-vault-openclaw`，manifest id 改為 `agentic-vault-openclaw`，unscoped name = manifest id，三種安裝路徑均可正常使用。
 
 | Path | 適用場景 | 狀態 |
 | --- | --- | --- |
-| `plugins.load.paths` + `plugins.entries.agentic-vault` | 本地開發、VM 部署 | ✅ 可用 |
-| `openclaw plugins install @agenticvault/openclaw` | npm 安裝 | ⚠️ 需手動修正 config key |
-| `openclaw plugins install --link ./path` | 本地連結 | ⚠️ 需手動修正 config key |
+| `plugins.load.paths` + `plugins.entries.agentic-vault-openclaw` | 本地開發、VM 部署 | ✅ 可用 |
+| `openclaw plugins install @agenticvault/agentic-vault-openclaw` | npm 安裝 | ✅ 可用（v0.1.3+） |
+| `openclaw plugins install --link ./path` | 本地連結 | ✅ 可用（v0.1.3+） |
 
 #### Security Controls
 
@@ -1502,11 +1502,11 @@ AWS credentials via host's default credential chain（與 CLI/MCP 一致）。
 ```mermaid
 sequenceDiagram
     participant OC as OpenClaw Gateway
-    participant Plugin as @agenticvault/openclaw
+    participant Plugin as @agenticvault/agentic-vault-openclaw
     participant WF as signDefiCall workflow
     participant KMS as AWS KMS (HSM)
 
-    Note over OC,Plugin: Gateway discovers plugin via<br/>package.json "openclaw.extensions"<br/>+ openclaw.plugin.json "id: agentic-vault"
+    Note over OC,Plugin: Gateway discovers plugin via<br/>package.json "openclaw.extensions"<br/>+ openclaw.plugin.json "id: agentic-vault-openclaw"
     OC->>Plugin: export default function(api)
     Plugin->>Plugin: Read api.pluginConfig → buildContext(config)
     Plugin->>Plugin: registerTools(api, ctx, config) — 7+2 AgentTool objects
@@ -1542,7 +1542,7 @@ sequenceDiagram
 #### 8a. 獨立套件建立 ✅
 
 1. 新增 `pnpm-workspace.yaml`（`packages: ['packages/*']`）
-2. 建立 `packages/openclaw-plugin/` 獨立套件（`@agenticvault/openclaw`）
+2. 建立 `packages/openclaw-plugin/` 獨立套件（`@agenticvault/agentic-vault-openclaw`）
 3. `peerDependencies: { "@agenticvault/agentic-vault": "~0.1.1", "openclaw": ">=2026.1.0" }`
 4. 僅 import `@agenticvault/agentic-vault` + `@agenticvault/agentic-vault/protocols` + `openclaw/plugin-sdk` public API
 5. Trust boundary test 驗證 import 限制
@@ -1589,7 +1589,7 @@ sequenceDiagram
 8. `package.json` 新增 `openclaw` peer dep、`"openclaw": { "extensions": [...] }` 欄位
 9. Trust boundary 新增 `openclaw/plugin-sdk` 為允許的 import 來源
 
-**已知限制**: OpenClaw installer 使用 `unscopedPackageName`（`openclaw`）推導 plugin ID，與 manifest `id: "agentic-vault"` 不一致。目前建議使用 `plugins.load.paths` 安裝。詳見 brainstorm 記錄。
+**v0.1.3 修正**: npm package 已改名為 `@agenticvault/agentic-vault-openclaw`，manifest id 改為 `agentic-vault-openclaw`，unscoped name = manifest id，`openclaw plugins install` 原生可用。詳見 [package rename request](./requests/2026-02-20-openclaw-package-rename.md)。
 
 ### Phase 9: Onboarding Improvements
 

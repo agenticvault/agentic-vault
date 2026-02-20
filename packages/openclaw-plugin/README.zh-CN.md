@@ -1,6 +1,6 @@
-<!-- Source: packages/openclaw-plugin/README.md | Last synced: 2026-02-19 -->
+<!-- Source: packages/openclaw-plugin/README.md | Last synced: 2026-02-20 -->
 
-# @agenticvault/openclaw
+# @agenticvault/agentic-vault-openclaw
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | 简体中文 | [日本語](README.ja.md) | [한국어](README.ko.md)
 
@@ -11,33 +11,33 @@
 ### 一键安装（推荐）
 
 ```bash
-npx -y -p @agenticvault/openclaw agentic-vault-setup
+npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
 ```
 
-此命令会将插件文件复制到 `~/.openclaw/extensions/agentic-vault/`、安装运行时依赖，并输出配置片段。请按照屏幕提示完成设置。
+此命令会将插件文件复制到 `~/.openclaw/extensions/agentic-vault-openclaw/`、安装运行时依赖，并输出配置片段。请按照屏幕提示完成设置。
 
 ### 快速安装（手动）
 
 安装包后，复制到 OpenClaw extensions 目录：
 
 ```bash
-npm install @agenticvault/openclaw
-mkdir -p ~/.openclaw/extensions/agentic-vault
-cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
-cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
+npm install @agenticvault/agentic-vault-openclaw
+mkdir -p ~/.openclaw/extensions/agentic-vault-openclaw
+cp -r ./node_modules/@agenticvault/agentic-vault-openclaw/* ~/.openclaw/extensions/agentic-vault-openclaw/
+cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ignore-scripts
 ```
 
-OpenClaw 会自动发现 `~/.openclaw/extensions/` 下的插件。目录名称必须与 manifest `id`（`agentic-vault`）一致。
+OpenClaw 会自动发现 `~/.openclaw/extensions/` 下的插件。目录名称必须与 manifest `id`（`agentic-vault-openclaw`）一致。
 
 ### 从 Tarball 安装（无需本地 node_modules）
 
 直接下载并解压，无需项目级安装：
 
 ```bash
-npm pack @agenticvault/openclaw --pack-destination /tmp
-mkdir -p ~/.openclaw/extensions/agentic-vault
-tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
-cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
+npm pack @agenticvault/agentic-vault-openclaw --pack-destination /tmp
+mkdir -p ~/.openclaw/extensions/agentic-vault-openclaw
+tar -xzf /tmp/agenticvault-agentic-vault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault-openclaw --strip-components=1
+cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ignore-scripts
 ```
 
 ### 开发模式（Symlink）
@@ -46,7 +46,7 @@ cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scrip
 
 ```bash
 mkdir -p ~/.openclaw/extensions
-ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
+ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault-openclaw
 ```
 
 ### 通过 `plugins.load.paths`（高级）
@@ -56,7 +56,7 @@ ln -sfn "$(pwd)/packages/openclaw-plugin" ~/.openclaw/extensions/agentic-vault
 ```bash
 mkdir -p /home/user/my-workspace/.openclaw/extensions
 cd /home/user/my-workspace/.openclaw/extensions
-npm install @agenticvault/openclaw
+npm install @agenticvault/agentic-vault-openclaw
 ```
 
 然后在 OpenClaw 主机配置中添加路径（生产/守护进程环境请使用绝对路径）：
@@ -65,26 +65,24 @@ npm install @agenticvault/openclaw
 {
   "plugins": {
     "load": {
-      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/openclaw"]
+      "paths": ["/home/user/my-workspace/.openclaw/extensions/node_modules/@agenticvault/agentic-vault-openclaw"]
     }
   }
 }
 ```
 
-> **建议**：生产环境请固定版本（`npm install @agenticvault/openclaw@0.1.2`），避免意外升级。
-
-> **已知限制**：`openclaw plugins install`（所有方式，包括本地路径与 `--link`）会从 unscoped npm 包名推导 extension ID（`openclaw`），与 manifest `id`（`agentic-vault`）不一致，导致配置键冲突。在上游修复前，请使用上述方式安装。
+> **建议**：生产环境请固定版本（`npm install @agenticvault/agentic-vault-openclaw@0.1.3`），避免意外升级。
 
 ## 配置
 
-在 OpenClaw 主机配置中注册插件。entries key 必须与 manifest `id`（`"agentic-vault"`）一致。若配置中使用了 `plugins.allow`，需加入 `"agentic-vault"`：
+在 OpenClaw 主机配置中注册插件。entries key 必须与 manifest `id`（`"agentic-vault-openclaw"`）一致。若配置中使用了 `plugins.allow`，需加入 `"agentic-vault-openclaw"`：
 
 ```json
 {
   "plugins": {
-    "allow": ["agentic-vault"],
+    "allow": ["agentic-vault-openclaw"],
     "entries": {
-      "agentic-vault": {
+      "agentic-vault-openclaw": {
         "config": {
           "keyId": "arn:aws:kms:us-east-1:123456789:key/your-key-id",
           "region": "us-east-1",
@@ -133,7 +131,7 @@ npm install @agenticvault/openclaw
 
 | 之前（预发布） | 之后（当前） |
 |----------------|-------------|
-| `import { register } from "@agenticvault/openclaw"` | `export default function(api)` |
+| `import { register } from "@agenticvault/agentic-vault-openclaw"` | `export default function(api)` |
 | `register(api, config)` | 配置从 `api.pluginConfig` 读取 |
 | `api.registerTool(name, config, handler)` | `api.registerTool({ name, description, parameters, label, execute })` |
 

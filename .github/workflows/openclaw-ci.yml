@@ -34,7 +34,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm --filter @agenticvault/openclaw typecheck
-      - run: pnpm --filter @agenticvault/openclaw lint
-      - run: pnpm --filter @agenticvault/openclaw test:unit
-      - run: pnpm --filter @agenticvault/openclaw test:integration
+      - run: pnpm --filter @agenticvault/agentic-vault-openclaw typecheck
+      - run: pnpm --filter @agenticvault/agentic-vault-openclaw lint
+      - run: pnpm --filter @agenticvault/agentic-vault-openclaw test:unit
+      - run: pnpm --filter @agenticvault/agentic-vault-openclaw test:integration

@@ -6,7 +6,7 @@ on:
       - 'openclaw-v*'
 
 # Trusted Publishing: OIDC token for npm authentication
-# Requires npm Trusted Publisher configured for @agenticvault/openclaw
+# Requires npm Trusted Publisher configured for @agenticvault/agentic-vault-openclaw
 #   Organization: agenticvault | Repository: agentic-vault | Workflow: release-openclaw.yml
 permissions:
   contents: read
@@ -36,19 +36,19 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @agenticvault/agentic-vault build
-      - run: pnpm --filter @agenticvault/openclaw build
-      - run: pnpm --filter @agenticvault/openclaw typecheck
-      - run: pnpm --filter @agenticvault/openclaw lint
-      - run: pnpm --filter @agenticvault/openclaw test:unit
+      - run: pnpm --filter @agenticvault/agentic-vault-openclaw build
+      - run: pnpm --filter @agenticvault/agentic-vault-openclaw typecheck
+      - run: pnpm --filter @agenticvault/agentic-vault-openclaw lint
+      - run: pnpm --filter @agenticvault/agentic-vault-openclaw test:unit
 
       # Idempotent publish: skip if version already exists on npm (e.g. after manual first-publish)
       - name: Check if already published
         id: check
         run: |
           PKG_VERSION=$(node -p "require('./packages/openclaw-plugin/package.json').version")
-          if npm view "@agenticvault/openclaw@${PKG_VERSION}" version > /dev/null 2>&1; then
+          if npm view "@agenticvault/agentic-vault-openclaw@${PKG_VERSION}" version > /dev/null 2>&1; then
             echo "already_published=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::@agenticvault/openclaw@${PKG_VERSION} already exists on npm, skipping publish"
+            echo "::notice::@agenticvault/agentic-vault-openclaw@${PKG_VERSION} already exists on npm, skipping publish"
           else
             echo "already_published=false" >> "$GITHUB_OUTPUT"
           fi

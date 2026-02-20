@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * Self-install script for @agenticvault/openclaw.
+ * Self-install script for @agenticvault/agentic-vault-openclaw.
  *
- * Copies plugin files to ~/.openclaw/extensions/agentic-vault/,
+ * Copies plugin files to ~/.openclaw/extensions/agentic-vault-openclaw/,
  * installs runtime dependencies, and prints a config snippet.
  *
  * Usage:
- *   npx -y -p @agenticvault/openclaw agentic-vault-setup
+ *   npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
  */
 
 import { existsSync, mkdirSync, cpSync } from 'node:fs';
@@ -25,10 +25,10 @@ const COPY_ENTRIES = ['dist', 'openclaw.plugin.json', 'package.json', 'LICENSE']
 /** Entries that must exist for a valid installation. */
 const REQUIRED_ENTRIES: ReadonlySet<string> = new Set(['dist', 'openclaw.plugin.json', 'package.json']);
 
-const EXTENSION_ID = 'agentic-vault';
+const EXTENSION_ID = 'agentic-vault-openclaw';
 
 export interface InstallOptions {
-  /** Override target directory (default: ~/.openclaw/extensions/agentic-vault) */
+  /** Override target directory (default: ~/.openclaw/extensions/agentic-vault-openclaw) */
   targetDir?: string;
   /** Override source directory (default: package root) */
   sourceDir?: string;
@@ -105,7 +105,7 @@ export function run(options: InstallOptions = {}): void {
     return;
   }
 
-  write(`\nInstalling @agenticvault/openclaw to ${targetDir}\n\n`);
+  write(`\nInstalling @agenticvault/agentic-vault-openclaw to ${targetDir}\n\n`);
 
   // 1. Create target directory
   mkdirSync(targetDir, { recursive: true });

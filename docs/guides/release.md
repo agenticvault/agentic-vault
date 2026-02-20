@@ -82,7 +82,7 @@ After Trusted Publishing is configured, all subsequent releases use `tag <versio
 | Tag Pattern | Workflow | Package |
 |-------------|----------|---------|
 | `v*` | `.github/workflows/release.yml` | `@agenticvault/agentic-vault` |
-| `openclaw-v*` | `.github/workflows/release-openclaw.yml` | `@agenticvault/openclaw` |
+| `openclaw-v*` | `.github/workflows/release-openclaw.yml` | `@agenticvault/agentic-vault-openclaw` |
 
 Both workflows verify that the tag version matches `package.json` before publishing.
 

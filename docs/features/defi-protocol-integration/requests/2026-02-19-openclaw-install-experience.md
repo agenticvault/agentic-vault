@@ -23,7 +23,7 @@
 ### Root Cause
 
 ```
-npm package:     @agenticvault/openclaw
+npm package:     @agenticvault/agentic-vault-openclaw
 unscoped name:   openclaw          ← OpenClaw installer 使用此值
 manifest id:     agentic-vault     ← OpenClaw runtime 使用此值
 main package:    @agenticvault/agentic-vault  ← 佔用了理想名稱
@@ -54,7 +54,7 @@ OpenClaw `plugins install` 從 `unscopedPackageName()` 推導 extension ID，而
 
 ### R2: Ship `install.ts` — 一鍵安裝腳本 (P1)
 
-嵌入在現有 `@agenticvault/openclaw` package 中的安裝腳本。
+嵌入在現有 `@agenticvault/agentic-vault-openclaw` package 中的安裝腳本。
 
 | Item | Description |
 |------|-------------|
@@ -66,7 +66,7 @@ OpenClaw `plugins install` 從 `unscopedPackageName()` 推導 extension ID，而
 安裝腳本行為：
 
 ```
-1. Copy plugin files → ~/.openclaw/extensions/agentic-vault/
+1. Copy plugin files → ~/.openclaw/extensions/agentic-vault-openclaw/
 2. Run npm install --omit=dev --ignore-scripts in target dir
 3. Print config snippet（不自動修改 user config）
 4. Print next steps（設定 keyId, region, restart gateway）
@@ -75,15 +75,17 @@ OpenClaw `plugins install` 從 `unscopedPackageName()` 推導 extension ID，而
 一鍵指令：
 
 ```bash
-npx -y -p @agenticvault/openclaw agentic-vault-setup
+npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
 ```
 
 ### R3: File Upstream OpenClaw Issue (P1)
 
+> **Note**: v0.1.3 計劃透過 [package rename](./2026-02-20-openclaw-package-rename.md) 同時解決此問題（npm name + manifest id 對齊）。Upstream issue 仍建議提交，但不再是唯一解法。
+
 | Item | Description |
 |------|-------------|
 | Issue 內容 | `openclaw plugins install` 應使用 `openclaw.plugin.json` 的 `id` 而非 `unscopedPackageName()` |
-| 附帶 repro | 示範 `@agenticvault/openclaw` 安裝後 config key 不一致 |
+| 附帶 repro | 示範 `@agenticvault/agentic-vault-openclaw` 安裝後 config key 不一致 |
 | 提供 patch 建議 | 指向 `install-safe-path` + `installs` 模組中的相關行 |
 
 ### R4: `@agenticvault/create` 互動式安裝（Future, P3）
@@ -124,8 +126,8 @@ npx -y -p @agenticvault/openclaw agentic-vault-setup
 - [x] `packages/openclaw-plugin/src/install.ts` 實作 self-install 邏輯
 - [x] `package.json` 新增 `"bin": { "agentic-vault-setup": "./dist/install.js" }`
 - [x] `files` array 包含所有必要檔案（`dist`, `openclaw.plugin.json`, `LICENSE`）
-- [ ] `npx -y -p @agenticvault/openclaw agentic-vault-setup` 可正確安裝（需 npm publish 後驗證）
-- [x] 安裝後 `~/.openclaw/extensions/agentic-vault/` 包含完整 plugin + deps（含 REQUIRED_ENTRIES 驗證）
+- [ ] `npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup` 可正確安裝（需 npm publish 後驗證）
+- [x] 安裝後 `~/.openclaw/extensions/agentic-vault-openclaw/` 包含完整 plugin + deps（含 REQUIRED_ENTRIES 驗證）
 - [x] 安裝後印出 config snippet（不自動修改 config）
 - [x] README "One-Command Install" section 新增
 - [x] 5 份 README 翻譯同步
@@ -139,12 +141,12 @@ npx -y -p @agenticvault/openclaw agentic-vault-setup
 - [x] `pnpm build` 成功（含 `install.ts` 編譯）
 - [x] `pnpm typecheck` 通過
 - [x] `pnpm test:unit` 通過（698 tests）
-- [x] `pnpm --filter @agenticvault/openclaw test:unit` 通過（53 tests）
+- [x] `pnpm --filter @agenticvault/agentic-vault-openclaw test:unit` 通過（53 tests）
 
 ## Dependencies
 
 - OpenClaw SDK Alignment (Phase 8.5) — Done
-- npm publish `@agenticvault/openclaw@0.1.2+` — R3 需要已發佈版本
+- npm publish `@agenticvault/agentic-vault-openclaw@0.1.2+` — R3 需要已發佈版本
 
 ## Risk Assessment
 

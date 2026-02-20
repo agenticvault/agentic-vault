@@ -1,8 +1,14 @@
 # Agentic Vault
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/agenticvault/agentic-vault/main/docs/img/cover.gif" alt="Agentic Vault" width="100%">
+</p>
+
+[![Website](https://img.shields.io/badge/Website-agenticvault.dev-blue?logo=globe)](https://agenticvault.dev)
 [![npm version](https://img.shields.io/npm/v/@agenticvault/agentic-vault)](https://www.npmjs.com/package/@agenticvault/agentic-vault)
 [![CI](https://github.com/agenticvault/agentic-vault/actions/workflows/ci.yml/badge.svg)](https://github.com/agenticvault/agentic-vault/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/pVrxjNpRUk)
 
 English | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
@@ -22,6 +28,8 @@ AI agents need to sign blockchain transactions, but giving them private keys is 
 - **EVM-native** -- built on [viem](https://viem.sh) with full EIP-712 typed data support
 
 ## Quick Start
+
+Requires **Node.js 22+**.
 
 ```bash
 npm install @agenticvault/agentic-vault
@@ -67,7 +75,7 @@ See [Interfaces Guide](docs/guides/interfaces.md) for usage examples and configu
 | Uniswap V3 | `exactInputSingle` | Yes | Yes (token pair, slippage, recipient) |
 | Aave V3 | `supply`, `borrow`, `repay`, `withdraw` | Yes | Yes (asset allowlist, interest rate mode) |
 
-Unknown calldata is always rejected (fail-closed). The dispatcher uses 2-stage resolution: contract address first, then selector-based fallback (e.g., ERC-20).
+Unknown calldata is rejected by default (fail-closed). The dispatcher uses 2-stage resolution: contract address first, then selector-based fallback (e.g., ERC-20). Raw signing tools (`sign_transaction`, `sign_typed_data`) bypass protocol decoding and are disabled unless `--unsafe-raw-sign` is explicitly enabled.
 
 ## Configuration
 
@@ -109,7 +117,7 @@ See [Policy Reference](docs/reference/policy.md) for the full schema and example
 |-----------|-------------|
 | Key isolation | Private keys remain in the HSM; only 32-byte digests are sent for signing |
 | Deny by default | Policy engine rejects all requests unless explicitly allowed |
-| Fail-closed | Unknown calldata is always rejected; known protocol without evaluator is rejected |
+| Fail-closed | Unknown calldata is rejected by default; raw signing tools are disabled unless `--unsafe-raw-sign` is enabled |
 | Audit trail | Every operation is logged as structured JSON to stderr with caller tag |
 | Minimal surface | Raw signing tools (`sign_transaction`, `sign_typed_data`) are disabled by default |
 

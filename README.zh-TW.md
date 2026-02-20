@@ -2,9 +2,15 @@
 
 # Agentic Vault
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/agenticvault/agentic-vault/main/docs/img/cover.gif" alt="Agentic Vault" width="100%">
+</p>
+
+[![Website](https://img.shields.io/badge/Website-agenticvault.dev-blue?logo=globe)](https://agenticvault.dev)
 [![npm version](https://img.shields.io/npm/v/@agenticvault/agentic-vault)](https://www.npmjs.com/package/@agenticvault/agentic-vault)
 [![CI](https://github.com/agenticvault/agentic-vault/actions/workflows/ci.yml/badge.svg)](https://github.com/agenticvault/agentic-vault/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/pVrxjNpRUk)
 
 [English](README.md) | 繁體中文 | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 

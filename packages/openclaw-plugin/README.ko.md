@@ -8,17 +8,27 @@
 
 ## 설치
 
-### 원커맨드 설치 (권장)
+### OpenClaw CLI (권장)
+
+```bash
+openclaw plugins install @agenticvault/agentic-vault-openclaw
+```
+
+확인:
+
+```bash
+openclaw plugins list
+```
+
+### npx 설치 프로그램 (대안)
 
 ```bash
 npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
 ```
 
-이 명령은 플러그인 파일을 `~/.openclaw/extensions/agentic-vault-openclaw/`에 복사하고, 런타임 종속성을 설치하며, 설정 스니펫을 출력합니다. 화면의 안내에 따라 설정을 완료하세요.
+이 명령은 플러그인 파일을 `~/.openclaw/extensions/agentic-vault-openclaw/`에 복사하고, 런타임 종속성을 설치하며, 설정 스니펫을 출력합니다.
 
-### 빠른 시작 (수동)
-
-패키지를 설치한 후 OpenClaw extensions 디렉토리에 복사합니다:
+### 수동 설치
 
 ```bash
 npm install @agenticvault/agentic-vault-openclaw
@@ -29,9 +39,7 @@ cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ign
 
 OpenClaw은 `~/.openclaw/extensions/` 내의 플러그인을 자동으로 감지합니다. 디렉토리 이름은 매니페스트 `id` (`agentic-vault-openclaw`)와 일치해야 합니다.
 
-### Tarball에서 설치 (로컬 node_modules 불필요)
-
-프로젝트 레벨 설치 없이 직접 다운로드하여 압축 해제합니다:
+### Tarball에서 설치
 
 ```bash
 npm pack @agenticvault/agentic-vault-openclaw --pack-destination /tmp
@@ -41,8 +49,6 @@ cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ign
 ```
 
 ### 개발 모드 (Symlink)
-
-플러그인 개발 시 extensions 디렉토리에 symlink를 생성합니다:
 
 ```bash
 mkdir -p ~/.openclaw/extensions

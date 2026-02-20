@@ -6,17 +6,27 @@ OpenClaw plugin for [Agentic Vault](https://github.com/agenticvault/agentic-vaul
 
 ## Installation
 
-### One-Command Install (Recommended)
+### OpenClaw CLI (Recommended)
+
+```bash
+openclaw plugins install @agenticvault/agentic-vault-openclaw
+```
+
+Verify:
+
+```bash
+openclaw plugins list
+```
+
+### npx Installer (Alternative)
 
 ```bash
 npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
 ```
 
-This copies the plugin files to `~/.openclaw/extensions/agentic-vault-openclaw/`, installs runtime dependencies, and prints a config snippet. Follow the on-screen instructions to complete setup.
+This copies the plugin files to `~/.openclaw/extensions/agentic-vault-openclaw/`, installs runtime dependencies, and prints a config snippet.
 
-### Quick Start (Manual)
-
-Install the package and copy it to the OpenClaw extensions directory:
+### Manual Install
 
 ```bash
 npm install @agenticvault/agentic-vault-openclaw
@@ -27,9 +37,7 @@ cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ign
 
 OpenClaw auto-discovers plugins in `~/.openclaw/extensions/`. The directory name must match the manifest `id` (`agentic-vault-openclaw`).
 
-### From Tarball (No Local node_modules)
-
-Download and extract directly without a project-level install:
+### From Tarball
 
 ```bash
 npm pack @agenticvault/agentic-vault-openclaw --pack-destination /tmp
@@ -39,8 +47,6 @@ cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ign
 ```
 
 ### For Development (Symlink)
-
-During plugin development, symlink to the extensions directory:
 
 ```bash
 mkdir -p ~/.openclaw/extensions

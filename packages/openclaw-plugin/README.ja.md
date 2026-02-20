@@ -8,17 +8,27 @@
 
 ## インストール
 
-### ワンコマンドインストール（推奨）
+### OpenClaw CLI（推奨）
+
+```bash
+openclaw plugins install @agenticvault/agentic-vault-openclaw
+```
+
+確認：
+
+```bash
+openclaw plugins list
+```
+
+### npx インストーラー（代替方法）
 
 ```bash
 npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
 ```
 
-このコマンドはプラグインファイルを `~/.openclaw/extensions/agentic-vault-openclaw/` にコピーし、ランタイム依存関係をインストールし、設定スニペットを出力します。画面の指示に従ってセットアップを完了してください。
+このコマンドはプラグインファイルを `~/.openclaw/extensions/agentic-vault-openclaw/` にコピーし、ランタイム依存関係をインストールし、設定スニペットを出力します。
 
-### クイックスタート（手動）
-
-パッケージをインストールし、OpenClaw extensions ディレクトリにコピーします：
+### 手動インストール
 
 ```bash
 npm install @agenticvault/agentic-vault-openclaw
@@ -29,9 +39,7 @@ cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ign
 
 OpenClaw は `~/.openclaw/extensions/` 内のプラグインを自動検出します。ディレクトリ名はマニフェスト `id`（`agentic-vault-openclaw`）と一致させる必要があります。
 
-### Tarball からインストール（ローカル node_modules 不要）
-
-プロジェクトレベルのインストールなしで直接ダウンロード・展開します：
+### Tarball からインストール
 
 ```bash
 npm pack @agenticvault/agentic-vault-openclaw --pack-destination /tmp
@@ -41,8 +49,6 @@ cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ign
 ```
 
 ### 開発モード（シンボリックリンク）
-
-プラグイン開発時は、extensions ディレクトリにシンボリックリンクを作成します：
 
 ```bash
 mkdir -p ~/.openclaw/extensions

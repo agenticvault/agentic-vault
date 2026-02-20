@@ -10,7 +10,7 @@
  *   npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
  */
 
-import { existsSync, mkdirSync, cpSync } from 'node:fs';
+import { existsSync, mkdirSync, cpSync, realpathSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { execSync } from 'node:child_process';
 import { homedir, platform } from 'node:os';
@@ -157,11 +157,22 @@ export function run(options: InstallOptions = {}): void {
   write('  4. Restart the OpenClaw gateway\n\n');
 }
 
-// Run when executed directly
+// Run when executed directly (realpathSync resolves npx bin symlinks)
+function safeRealpath(p: string): string {
+  try {
+    return resolve(realpathSync(p));
+  } catch {
+    return resolve(p);
+  }
+}
+
+const resolvedArgv1 = process.argv[1] ? safeRealpath(process.argv[1]) : '';
+const resolvedFilename = safeRealpath(__filename);
+
 const isDirectRun =
-  process.argv[1] &&
-  (resolve(process.argv[1]) === resolve(__filename) ||
-    resolve(process.argv[1]) === resolve(__filename.replace(/\.ts$/, '.js')));
+  resolvedArgv1 !== '' &&
+  (resolvedArgv1 === resolvedFilename ||
+    resolvedArgv1 === safeRealpath(__filename.replace(/\.ts$/, '.js')));
 
 if (isDirectRun) {
   run();

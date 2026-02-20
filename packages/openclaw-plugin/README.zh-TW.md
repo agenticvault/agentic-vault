@@ -8,17 +8,27 @@
 
 ## 安裝
 
-### 一鍵安裝（推薦）
+### OpenClaw CLI（推薦）
+
+```bash
+openclaw plugins install @agenticvault/agentic-vault-openclaw
+```
+
+驗證：
+
+```bash
+openclaw plugins list
+```
+
+### npx 安裝器（替代方案）
 
 ```bash
 npx -y -p @agenticvault/agentic-vault-openclaw agentic-vault-setup
 ```
 
-此指令會將插件檔案複製至 `~/.openclaw/extensions/agentic-vault-openclaw/`、安裝 runtime 依賴，並印出設定片段。請依照畫面指示完成設定。
+此指令會將插件檔案複製至 `~/.openclaw/extensions/agentic-vault-openclaw/`、安裝 runtime 依賴，並印出設定片段。
 
-### 快速安裝（手動）
-
-安裝套件後，複製至 OpenClaw extensions 目錄：
+### 手動安裝
 
 ```bash
 npm install @agenticvault/agentic-vault-openclaw
@@ -29,9 +39,7 @@ cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ign
 
 OpenClaw 會自動偵測 `~/.openclaw/extensions/` 下的插件。目錄名稱必須與 manifest `id`（`agentic-vault-openclaw`）一致。
 
-### 從 Tarball 安裝（無需本地 node_modules）
-
-直接下載並解壓，無需專案層級安裝：
+### 從 Tarball 安裝
 
 ```bash
 npm pack @agenticvault/agentic-vault-openclaw --pack-destination /tmp
@@ -41,8 +49,6 @@ cd ~/.openclaw/extensions/agentic-vault-openclaw && npm install --omit=dev --ign
 ```
 
 ### 開發模式（Symlink）
-
-開發插件時，建立 symlink 至 extensions 目錄：
 
 ```bash
 mkdir -p ~/.openclaw/extensions

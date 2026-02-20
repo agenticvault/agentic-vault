@@ -8,7 +8,15 @@
 
 ## 安装
 
-### 快速安装（推荐）
+### 一键安装（推荐）
+
+```bash
+npx -y -p @agenticvault/openclaw agentic-vault-setup
+```
+
+此命令会将插件文件复制到 `~/.openclaw/extensions/agentic-vault/`、安装运行时依赖，并输出配置片段。请按照屏幕提示完成设置。
+
+### 快速安装（手动）
 
 安装包后，复制到 OpenClaw extensions 目录：
 
@@ -16,6 +24,7 @@
 npm install @agenticvault/openclaw
 mkdir -p ~/.openclaw/extensions/agentic-vault
 cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
+cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
 ```
 
 OpenClaw 会自动发现 `~/.openclaw/extensions/` 下的插件。目录名称必须与 manifest `id`（`agentic-vault`）一致。
@@ -28,6 +37,7 @@ OpenClaw 会自动发现 `~/.openclaw/extensions/` 下的插件。目录名称�
 npm pack @agenticvault/openclaw --pack-destination /tmp
 mkdir -p ~/.openclaw/extensions/agentic-vault
 tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
+cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
 ```
 
 ### 开发模式（Symlink）

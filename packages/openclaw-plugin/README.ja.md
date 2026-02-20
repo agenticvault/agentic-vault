@@ -8,7 +8,15 @@
 
 ## インストール
 
-### クイックスタート（推奨）
+### ワンコマンドインストール（推奨）
+
+```bash
+npx -y -p @agenticvault/openclaw agentic-vault-setup
+```
+
+このコマンドはプラグインファイルを `~/.openclaw/extensions/agentic-vault/` にコピーし、ランタイム依存関係をインストールし、設定スニペットを出力します。画面の指示に従ってセットアップを完了してください。
+
+### クイックスタート（手動）
 
 パッケージをインストールし、OpenClaw extensions ディレクトリにコピーします：
 
@@ -16,6 +24,7 @@
 npm install @agenticvault/openclaw
 mkdir -p ~/.openclaw/extensions/agentic-vault
 cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
+cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
 ```
 
 OpenClaw は `~/.openclaw/extensions/` 内のプラグインを自動検出します。ディレクトリ名はマニフェスト `id`（`agentic-vault`）と一致させる必要があります。
@@ -28,6 +37,7 @@ OpenClaw は `~/.openclaw/extensions/` 内のプラグインを自動検出し�
 npm pack @agenticvault/openclaw --pack-destination /tmp
 mkdir -p ~/.openclaw/extensions/agentic-vault
 tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
+cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
 ```
 
 ### 開発モード（シンボリックリンク）

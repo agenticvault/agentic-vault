@@ -8,7 +8,15 @@
 
 ## 설치
 
-### 빠른 시작 (권장)
+### 원커맨드 설치 (권장)
+
+```bash
+npx -y -p @agenticvault/openclaw agentic-vault-setup
+```
+
+이 명령은 플러그인 파일을 `~/.openclaw/extensions/agentic-vault/`에 복사하고, 런타임 종속성을 설치하며, 설정 스니펫을 출력합니다. 화면의 안내에 따라 설정을 완료하세요.
+
+### 빠른 시작 (수동)
 
 패키지를 설치한 후 OpenClaw extensions 디렉토리에 복사합니다:
 
@@ -16,6 +24,7 @@
 npm install @agenticvault/openclaw
 mkdir -p ~/.openclaw/extensions/agentic-vault
 cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
+cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
 ```
 
 OpenClaw은 `~/.openclaw/extensions/` 내의 플러그인을 자동으로 감지합니다. 디렉토리 이름은 매니페스트 `id` (`agentic-vault`)와 일치해야 합니다.
@@ -28,6 +37,7 @@ OpenClaw은 `~/.openclaw/extensions/` 내의 플러그인을 자동으로 감지
 npm pack @agenticvault/openclaw --pack-destination /tmp
 mkdir -p ~/.openclaw/extensions/agentic-vault
 tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
+cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
 ```
 
 ### 개발 모드 (Symlink)

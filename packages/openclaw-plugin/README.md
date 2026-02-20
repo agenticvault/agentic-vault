@@ -6,7 +6,15 @@ OpenClaw plugin for [Agentic Vault](https://github.com/agenticvault/agentic-vaul
 
 ## Installation
 
-### Quick Start (Recommended)
+### One-Command Install (Recommended)
+
+```bash
+npx -y -p @agenticvault/openclaw agentic-vault-setup
+```
+
+This copies the plugin files to `~/.openclaw/extensions/agentic-vault/`, installs runtime dependencies, and prints a config snippet. Follow the on-screen instructions to complete setup.
+
+### Quick Start (Manual)
 
 Install the package and copy it to the OpenClaw extensions directory:
 
@@ -14,6 +22,7 @@ Install the package and copy it to the OpenClaw extensions directory:
 npm install @agenticvault/openclaw
 mkdir -p ~/.openclaw/extensions/agentic-vault
 cp -r ./node_modules/@agenticvault/openclaw/* ~/.openclaw/extensions/agentic-vault/
+cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
 ```
 
 OpenClaw auto-discovers plugins in `~/.openclaw/extensions/`. The directory name must match the manifest `id` (`agentic-vault`).
@@ -26,6 +35,7 @@ Download and extract directly without a project-level install:
 npm pack @agenticvault/openclaw --pack-destination /tmp
 mkdir -p ~/.openclaw/extensions/agentic-vault
 tar -xzf /tmp/agenticvault-openclaw-*.tgz -C ~/.openclaw/extensions/agentic-vault --strip-components=1
+cd ~/.openclaw/extensions/agentic-vault && npm install --omit=dev --ignore-scripts
 ```
 
 ### For Development (Symlink)

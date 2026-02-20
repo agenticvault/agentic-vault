@@ -190,18 +190,23 @@ export function preflight(opts: RunOptions): void {
 // first-publish
 // ---------------------------------------------------------------------------
 
-export function firstPublish(opts: RunOptions, dryRun: boolean): void {
+export type PublishScope = 'all' | 'core' | 'openclaw';
+
+export function firstPublish(opts: RunOptions, dryRun: boolean, scope: PublishScope = 'all'): void {
   const { exec: run, rootDir, stdout } = opts;
 
-  stdout('── First publish (manual) ──\n');
+  const publishCore = scope === 'all' || scope === 'core';
+  const publishOc = scope === 'all' || scope === 'openclaw';
+
+  stdout(`── First publish (manual${scope !== 'all' ? `, ${scope} only` : ''}) ──\n`);
 
   const coreVer = getVersion(rootDir);
   const ocVer = getOpenClawVersion(rootDir);
   assertShellSafe(coreVer, 'core version');
   assertShellSafe(ocVer, 'openclaw version');
 
-  stdout(`[info]  Core:     ${CORE_PKG}@${coreVer}`);
-  stdout(`[info]  OpenClaw: ${OPENCLAW_PKG}@${ocVer}`);
+  if (publishCore) stdout(`[info]  Core:     ${CORE_PKG}@${coreVer}`);
+  if (publishOc) stdout(`[info]  OpenClaw: ${OPENCLAW_PKG}@${ocVer}`);
 
   if (dryRun) {
     stdout('[warn]  DRY RUN — no packages will be published');
@@ -213,66 +218,74 @@ export function firstPublish(opts: RunOptions, dryRun: boolean): void {
   stdout('[ok]    Build complete');
 
   // Publish core (no dynamic interpolation — publishConfig in package.json handles scope)
-  stdout(`\n── Publishing ${CORE_PKG}@${coreVer} ──\n`);
+  if (publishCore) {
+    stdout(`\n── Publishing ${CORE_PKG}@${coreVer} ──\n`);
 
-  if (dryRun) {
-    stdout('[info]  [dry-run] npm publish --access public');
-    run('npm publish --access public --dry-run', { cwd: rootDir });
-  } else {
-    run('npm publish --access public', { cwd: rootDir });
-    stdout(`[ok]    Published ${CORE_PKG}@${coreVer}`);
+    if (dryRun) {
+      stdout('[info]  [dry-run] npm publish --access public');
+      run('npm publish --access public --dry-run', { cwd: rootDir });
+    } else {
+      run('npm publish --access public', { cwd: rootDir });
+      stdout(`[ok]    Published ${CORE_PKG}@${coreVer}`);
+    }
   }
 
   // Publish openclaw (pnpm pack to resolve workspace:*)
-  stdout(`\n── Publishing ${OPENCLAW_PKG}@${ocVer} ──\n`);
+  if (publishOc) {
+    stdout(`\n── Publishing ${OPENCLAW_PKG}@${ocVer} ──\n`);
 
-  const ocDir = resolve(rootDir, OPENCLAW_DIR);
+    const ocDir = resolve(rootDir, OPENCLAW_DIR);
 
-  // Clean stale tarballs before packing
-  cleanupTarballs(ocDir);
+    // Clean stale tarballs before packing
+    cleanupTarballs(ocDir);
 
-  stdout('[info]  Creating tarball (resolves workspace:* protocol)...');
-  run('pnpm pack', { cwd: ocDir });
+    stdout('[info]  Creating tarball (resolves workspace:* protocol)...');
+    run('pnpm pack', { cwd: ocDir });
 
-  // Find the generated tarball and validate filename is safe for shell
-  const tarball = findTarball(ocDir);
-  if (!tarball) {
-    throw new Error(`No .tgz file found in ${OPENCLAW_DIR}`);
+    // Find the generated tarball and validate filename is safe for shell
+    const tarball = findTarball(ocDir);
+    if (!tarball) {
+      throw new Error(`No .tgz file found in ${OPENCLAW_DIR}`);
+    }
+    assertShellSafe(basename(tarball), 'tarball filename');
+
+    stdout(`[info]  Tarball: ${basename(tarball)}`);
+
+    // Use basename + cwd to avoid interpolating full filesystem path into shell command
+    const tarballName = basename(tarball);
+    if (dryRun) {
+      stdout(`[info]  [dry-run] npm publish ${tarballName} --access public`);
+      run(`npm publish ${tarballName} --access public --dry-run`, { cwd: ocDir });
+    } else {
+      run(`npm publish ${tarballName} --access public`, { cwd: ocDir });
+      stdout(`[ok]    Published ${OPENCLAW_PKG}@${ocVer}`);
+    }
+
+    // Cleanup tarball
+    cleanupTarballs(ocDir);
   }
-  assertShellSafe(basename(tarball), 'tarball filename');
-
-  stdout(`[info]  Tarball: ${basename(tarball)}`);
-
-  // Use basename + cwd to avoid interpolating full filesystem path into shell command
-  const tarballName = basename(tarball);
-  if (dryRun) {
-    stdout(`[info]  [dry-run] npm publish ${tarballName} --access public`);
-    run(`npm publish ${tarballName} --access public --dry-run`, { cwd: ocDir });
-  } else {
-    run(`npm publish ${tarballName} --access public`, { cwd: ocDir });
-    stdout(`[ok]    Published ${OPENCLAW_PKG}@${ocVer}`);
-  }
-
-  // Cleanup tarball
-  cleanupTarballs(ocDir);
 
   // Verify
   if (!dryRun) {
     stdout('\n── Verifying on npm registry ──\n');
     stdout('[info]  Waiting for registry propagation...');
 
-    try {
-      const verifiedCore = run(`npm view ${CORE_PKG}@${coreVer} version`);
-      stdout(`[ok]    ${CORE_PKG}@${verifiedCore} exists on npm`);
-    } catch {
-      stdout(`[warn]  ${CORE_PKG}@${coreVer} not yet visible (propagation may take a minute)`);
+    if (publishCore) {
+      try {
+        const verifiedCore = run(`npm view ${CORE_PKG}@${coreVer} version`);
+        stdout(`[ok]    ${CORE_PKG}@${verifiedCore} exists on npm`);
+      } catch {
+        stdout(`[warn]  ${CORE_PKG}@${coreVer} not yet visible (propagation may take a minute)`);
+      }
     }
 
-    try {
-      const verifiedOc = run(`npm view ${OPENCLAW_PKG}@${ocVer} version`);
-      stdout(`[ok]    ${OPENCLAW_PKG}@${verifiedOc} exists on npm`);
-    } catch {
-      stdout(`[warn]  ${OPENCLAW_PKG}@${ocVer} not yet visible (propagation may take a minute)`);
+    if (publishOc) {
+      try {
+        const verifiedOc = run(`npm view ${OPENCLAW_PKG}@${ocVer} version`);
+        stdout(`[ok]    ${OPENCLAW_PKG}@${verifiedOc} exists on npm`);
+      } catch {
+        stdout(`[warn]  ${OPENCLAW_PKG}@${ocVer} not yet visible (propagation may take a minute)`);
+      }
     }
   }
 
@@ -511,6 +524,7 @@ Commands:
 
 Options:
   --dry-run              Preview without side effects
+  --package <name>       Publish only one package (core | openclaw). first-publish only.
 
 Workflows:
 
@@ -518,6 +532,9 @@ Workflows:
     1. npx tsx scripts/release.ts preflight
     2. npx tsx scripts/release.ts first-publish
     3. Configure Trusted Publisher on npmjs.com
+
+  Publish single package:
+    npx tsx scripts/release.ts first-publish --package openclaw
 
   Subsequent releases:
     npx tsx scripts/release.ts tag 0.2.0
@@ -539,9 +556,22 @@ export function main(argv: string[] = process.argv.slice(2)): void {
     case 'preflight':
       preflight(opts);
       break;
-    case 'first-publish':
-      firstPublish(opts, dryRun);
+    case 'first-publish': {
+      const pkgIdx = rest.indexOf('--package');
+      let scope: PublishScope = 'all';
+      if (pkgIdx !== -1) {
+        const pkgArg = rest[pkgIdx + 1];
+        if (!pkgArg || pkgArg.startsWith('-')) {
+          throw new Error('--package requires a value: "core" or "openclaw".');
+        }
+        if (pkgArg !== 'core' && pkgArg !== 'openclaw') {
+          throw new Error(`Invalid --package value: ${pkgArg}. Must be "core" or "openclaw".`);
+        }
+        scope = pkgArg;
+      }
+      firstPublish(opts, dryRun, scope);
       break;
+    }
     case 'bump': {
       const version = rest.find((arg) => arg !== '--dry-run');
       if (!version) {

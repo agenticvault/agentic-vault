@@ -455,6 +455,58 @@ describe('firstPublish', () => {
     expect(calls.filter((c) => c.includes('npm view')).length).toBe(0);
   });
 
+  it('should publish only core when scope is core', () => {
+    const calls: string[] = [];
+    const opts = createMockOpts({
+      exec: vi.fn().mockImplementation((cmd: string) => {
+        calls.push(cmd);
+        if (cmd.includes('npm view')) return '0.1.0';
+        return '';
+      }),
+    });
+
+    mockReadFileSync
+      .mockReturnValueOnce(makePkgJson('0.1.0'))
+      .mockReturnValueOnce(makeOcPkgJson('0.1.0'));
+
+    firstPublish(opts, false, 'core');
+
+    // Should publish core
+    expect(calls).toContain('npm publish --access public');
+
+    // Should NOT pack or publish openclaw
+    expect(calls).not.toContain('pnpm pack');
+    expect(opts.output.some((line) => line.includes('core only'))).toBe(true);
+    expect(opts.output.some((line) => line.includes('Publishing @agenticvault/agentic-vault-openclaw'))).toBe(false);
+  });
+
+  it('should publish only openclaw when scope is openclaw', () => {
+    const calls: string[] = [];
+    const opts = createMockOpts({
+      exec: vi.fn().mockImplementation((cmd: string) => {
+        calls.push(cmd);
+        if (cmd.includes('npm view')) return '0.1.0';
+        return '';
+      }),
+    });
+
+    mockReadFileSync
+      .mockReturnValueOnce(makePkgJson('0.1.0'))
+      .mockReturnValueOnce(makeOcPkgJson('0.1.0'));
+
+    mockReaddirSync.mockReturnValue(['agenticvault-agentic-vault-openclaw-0.1.0.tgz'] as never);
+
+    firstPublish(opts, false, 'openclaw');
+
+    // Should NOT publish core (the root npm publish)
+    const rootPublish = calls.filter((c) => c === 'npm publish --access public');
+    expect(rootPublish.length).toBe(0);
+
+    // Should pack and publish openclaw
+    expect(calls).toContain('pnpm pack');
+    expect(opts.output.some((line) => line.includes('openclaw only'))).toBe(true);
+  });
+
   it('should throw when no tarball is found', () => {
     const opts = createMockOpts({
       exec: vi.fn().mockReturnValue(''),
@@ -861,5 +913,23 @@ describe('main', () => {
 
   it('should throw for bump with only --dry-run', () => {
     expect(() => main(['bump', '--dry-run'])).toThrow('Usage: release.ts bump <version>');
+  });
+
+  it('should throw for first-publish with invalid --package value', () => {
+    expect(() => main(['first-publish', '--package', 'invalid'])).toThrow(
+      'Invalid --package value: invalid',
+    );
+  });
+
+  it('should throw for first-publish with --package but no value', () => {
+    expect(() => main(['first-publish', '--package'])).toThrow(
+      '--package requires a value',
+    );
+  });
+
+  it('should throw for first-publish with --package followed by another flag', () => {
+    expect(() => main(['first-publish', '--package', '--dry-run'])).toThrow(
+      '--package requires a value',
+    );
   });
 });

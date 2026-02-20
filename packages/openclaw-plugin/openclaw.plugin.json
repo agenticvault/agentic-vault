@@ -3,7 +3,7 @@
   "name": "Agentic Vault",
   "displayName": "Agentic Vault",
   "description": "Server-side EVM signing with AWS KMS — sign DeFi transactions, permits, and more",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "configSchema": {
     "type": "object",
     "properties": {

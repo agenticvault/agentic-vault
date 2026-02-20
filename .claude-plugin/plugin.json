@@ -1,7 +1,7 @@
 {
   "name": "agentic-vault",
   "displayName": "Agentic Vault",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Server-side EVM signing with policy-constrained MCP tools for Claude Code",
   "publisher": "agenticvault",
   "skills": [
